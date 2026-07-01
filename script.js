@@ -38,6 +38,7 @@ const TRACE_RGB = "17, 17, 17";
 const BREATH_SIDE_SECONDS = 4;
 const BREATH_CYCLE_SECONDS = 16;
 const MUSIC_PHRASE_SECONDS = 16;
+const MUSIC_GRID_DIVISIONS = 4;
 const HEART_BPM_OPTIONS = [45, 60, 75, 90];
 const DRONE_TONE_FREQUENCY = 100;
 const DRONE_BASE_GAIN = .026;
@@ -130,16 +131,16 @@ const state = {
     breath: 760,
     beat: 76,
     drone: 7.83,
-    musicKick: 72,
-    musicBackbeat: 180,
+    musicKick: 432,
+    musicBackbeat: 864,
   },
   sourceVolumes: {
     musicKick: 1,
     musicBackbeat: 1,
   },
   sourceTempos: {
-    musicKick: .5,
-    musicBackbeat: .25,
+    musicKick: 1,
+    musicBackbeat: .5,
   },
   eqOpen: false,
   eqTarget: "master",
@@ -621,25 +622,17 @@ function heartBeatInterval(bpm) {
   return 60 / Math.max(1, bpm);
 }
 
-function musicBaseTempoForBpm(bpm) {
-  const target = 135;
-  const multipliers = [1, 1.5, 2, 2.5, 3];
-  return multipliers
-    .map((multiplier) => Math.max(1, bpm) * multiplier)
-    .reduce((best, tempo) => (Math.abs(tempo - target) < Math.abs(best - target) ? tempo : best));
-}
-
-function musicBaseIntervalForBpm(bpm) {
-  return 60 / musicBaseTempoForBpm(bpm);
+function musicGridInterval(bpm = state.beatBpm) {
+  return heartBeatInterval(bpm) / MUSIC_GRID_DIVISIONS;
 }
 
 function musicEnvelope(elapsed, bpm) {
   const phrase = positiveModulo(elapsed, MUSIC_PHRASE_SECONDS);
   const phraseSwell = .5 + .5 * Math.sin(TWO_PI * phrase / MUSIC_PHRASE_SECONDS - Math.PI / 2);
-  const stepInterval = musicBaseIntervalForBpm(bpm);
+  const stepInterval = musicGridInterval(bpm);
   const step = positiveModulo(phrase, stepInterval) / stepInterval;
-  const pluck = Math.exp(-step * 5.2);
-  return clamp(.22 + phraseSwell * .38 + pluck * .28, 0, 1);
+  const pulse = Math.exp(-step * 2.6);
+  return clamp(.2 + phraseSwell * .36 + pulse * .14, 0, 1);
 }
 
 function renderEqualizer() {
@@ -706,7 +699,7 @@ function syncLayerLabels() {
   breathLabel.textContent = `${formatHz(state.sourceFrequencies.breath)} / 4-4-4-4`;
   beatLabel.textContent = `${state.beatBpm} bpm / ${formatHz(state.sourceFrequencies.beat)}`;
   droneLabel.textContent = `${formatHz(DRONE_TONE_FREQUENCY)} / ${formatHz(state.sourceFrequencies.drone)} mod`;
-  musicLabel.textContent = `K ${formatHz(state.sourceFrequencies.musicKick)} ${formatTempo(state.sourceTempos.musicKick)} / B ${formatHz(state.sourceFrequencies.musicBackbeat)} ${formatTempo(state.sourceTempos.musicBackbeat)}`;
+  musicLabel.textContent = `Bowl ${formatHz(state.sourceFrequencies.musicKick)} / Space ${formatHz(state.sourceFrequencies.musicBackbeat)}`;
 }
 
 function currentEqSettings() {
@@ -727,8 +720,8 @@ function sourceFrequencyConfig(target) {
     breath: { min: 80, max: 5000, step: 1 },
     beat: { min: 30, max: 180, step: 1 },
     drone: { min: 1, max: 40, step: .01 },
-    musicKick: { min: 35, max: 140, step: 1 },
-    musicBackbeat: { min: 80, max: 360, step: 1 },
+    musicKick: { min: 174, max: 963, step: 1 },
+    musicBackbeat: { min: 220, max: 2000, step: 1 },
   }[target] || { min: 20, max: 5000, step: 1 };
 }
 
@@ -743,8 +736,8 @@ function sourceTempoOptions() {
 function tuneControlsForTarget(target) {
   if (target === "music") {
     return [
-      { key: "musicKick", label: "Kick" },
-      { key: "musicBackbeat", label: "Backbeat" },
+      { key: "musicKick", label: "Bowl" },
+      { key: "musicBackbeat", label: "Space" },
     ];
   }
   const source = sourceTargetForEq(target);
@@ -850,8 +843,7 @@ function applySourceTempoInput(key, value) {
   state.sourceTempos[key] = sourceTempoOptions().includes(tempo) ? tempo : 1;
   syncLayerLabels();
   if (!state.audioNodes) return;
-  if (key === "musicKick") state.audioNodes.nextMusicKickAt = 0;
-  if (key === "musicBackbeat") state.audioNodes.nextMusicBackbeatAt = 0;
+  if (key === "musicKick" || key === "musicBackbeat") state.audioNodes.nextMusicStepAt = 0;
 }
 
 function exportSoundSettings() {
@@ -892,12 +884,12 @@ function exportSoundSettings() {
         enabled: state.layers.music,
         volume: state.layerVolumes.music,
         sources: {
-          kick: {
+          bowl: {
             frequencyHz: state.sourceFrequencies.musicKick,
             volume: state.sourceVolumes.musicKick,
             tempo: state.sourceTempos.musicKick,
           },
-          backbeat: {
+          space: {
             frequencyHz: state.sourceFrequencies.musicBackbeat,
             volume: state.sourceVolumes.musicBackbeat,
             tempo: state.sourceTempos.musicBackbeat,
@@ -1082,16 +1074,14 @@ async function startAudio() {
       musicAnalyser,
       musicWaveformData: new Float32Array(musicAnalyser.fftSize),
       nextHeartBeatAt: 0,
-      nextMusicKickAt: 0,
-      nextMusicBackbeatAt: 0,
+      nextMusicStepAt: 0,
     };
   }
   if (state.audio.state === "suspended") await state.audio.resume();
   state.startedAt = performance.now() / 1000;
   state.audioStartedAt = state.audio.currentTime;
   state.audioNodes.nextHeartBeatAt = 0;
-  state.audioNodes.nextMusicKickAt = 0;
-  state.audioNodes.nextMusicBackbeatAt = 0;
+  state.audioNodes.nextMusicStepAt = state.audioStartedAt + .02;
   state.musicSession = createMusicSession(state.beatBpm);
   applyMusicSession(state.audio.currentTime);
   if (state.audioNodes.breathSource) {
@@ -1244,10 +1234,18 @@ function sine(frequency, t) {
 }
 
 function createMusicSession(bpm, seed = createSessionSeed()) {
-  void bpm;
+  const random = mulberry32(seed + Math.round(bpm * 1000));
+  const bowlPaths = [
+    [1, 9 / 8, 5 / 4, 3 / 2],
+    [1, 5 / 4, 3 / 2, 9 / 8],
+    [1, 9 / 8, 4 / 3, 3 / 2],
+  ];
   return {
     seed,
-    filterHz: 900,
+    filterHz: 2600 + random() * 900,
+    bowlPath: bowlPaths[Math.floor(random() * bowlPaths.length)],
+    panOffset: random() * .4 - .2,
+    detune: .9 + random() * 1.2,
   };
 }
 
@@ -1263,34 +1261,104 @@ function scheduleMusic(now) {
     state.musicSession = createMusicSession(state.beatBpm);
     applyMusicSession(now);
   }
-  scheduleMusicSource(now, "Kick", "nextMusicKickAt", state.sourceTempos.musicKick, scheduleLowKick, 0, .82);
-  scheduleMusicSource(now, "Backbeat", "nextMusicBackbeatAt", state.sourceTempos.musicBackbeat, scheduleBackbeatThud, .5, .66);
-}
-
-function scheduleMusicSource(now, label, cursorKey, tempo, scheduler, phase, velocity) {
-  void label;
-  const multiplier = sourceTempoOptions().includes(tempo) ? tempo : 1;
-  const interval = musicBaseIntervalForBpm(state.beatBpm) / multiplier;
-  const offset = interval * phase;
-  if (!state.audioNodes[cursorKey] || state.audioNodes[cursorKey] < now) {
-    state.audioNodes[cursorKey] = nextSourceTime(now, interval, offset);
+  const interval = musicGridInterval();
+  if (!state.audioNodes.nextMusicStepAt || state.audioNodes.nextMusicStepAt < now) {
+    state.audioNodes.nextMusicStepAt = nextGridTime(now, interval);
   }
-  while (state.audioNodes[cursorKey] < now + .7) {
-    scheduler(state.audioNodes[cursorKey], velocity * sourceTempoVelocity(multiplier));
-    state.audioNodes[cursorKey] += interval;
+  while (state.audioNodes.nextMusicStepAt < now + .7) {
+    const at = state.audioNodes.nextMusicStepAt;
+    scheduleMusicStep(at, gridStepForTime(at, interval), interval);
+    state.audioNodes.nextMusicStepAt += interval;
   }
 }
 
-function sourceTempoVelocity(multiplier) {
-  if (multiplier < 1) return .94;
-  if (multiplier === 1) return 1;
-  return clamp(1 / Math.sqrt(multiplier), .68, .9);
+function scheduleMusicStep(at, step, interval) {
+  const session = state.musicSession || createMusicSession(state.beatBpm);
+  const sideSteps = Math.max(4, Math.round(BREATH_SIDE_SECONDS / interval));
+  const cycleSteps = sideSteps * 4;
+  const sideStep = step % sideSteps;
+  const heartSteps = Math.max(1, Math.round(heartBeatInterval(state.beatBpm) / interval));
+  const cycleSide = Math.floor((step % cycleSteps) / sideSteps);
+  const bowlSpace = sourceTempoDensity(state.sourceTempos.musicKick);
+  const spaceSpace = sourceTempoDensity(state.sourceTempos.musicBackbeat);
+  const bowlStep = nearestGridStep(0, heartSteps);
+  const haloStep = nearestGridStep(sideSteps * .5, heartSteps);
+
+  if (sideStep === bowlStep && cycleSide % bowlSpace === 0) {
+    const ratio = session.bowlPath[cycleSide % session.bowlPath.length];
+    const frequency = state.sourceFrequencies.musicKick * ratio;
+    const pan = [-.42, .34, -.18, .48][cycleSide] + session.panOffset;
+    scheduleCrystalBowl(at, frequency, BREATH_SIDE_SECONDS * 1.25, .48, pan, session.detune);
+  }
+  if (sideStep === haloStep && cycleSide % spaceSpace === 0) {
+    const frequency = state.sourceFrequencies.musicBackbeat * (cycleSide % 2 ? 1.125 : 1);
+    const pan = [.5, -.46, .24, -.3][cycleSide] - session.panOffset;
+    scheduleCrystalHalo(at + interval * .1, frequency, BREATH_SIDE_SECONDS * .9, .22, pan);
+  }
 }
 
-function nextSourceTime(now, interval, offset = 0) {
-  const origin = (state.audioStartedAt || now) + offset;
-  const step = Math.max(0, Math.ceil((now - origin + .001) / interval));
-  return origin + step * interval;
+function nearestGridStep(target, grid) {
+  return Math.max(0, Math.round(target / grid) * grid);
+}
+
+function scheduleCrystalBowl(at, frequency, duration, velocity, pan, detune) {
+  const bowlVolume = state.sourceVolumes.musicKick;
+  const left = state.audio.createOscillator();
+  const right = state.audio.createOscillator();
+  const gain = state.audio.createGain();
+  const filter = state.audio.createBiquadFilter();
+  const panner = state.audio.createStereoPanner();
+  left.type = "sine";
+  right.type = "sine";
+  left.frequency.setValueAtTime(frequency, at);
+  right.frequency.setValueAtTime(frequency, at);
+  left.detune.value = -detune;
+  right.detune.value = detune;
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(Math.min(5200, frequency * 5.5), at);
+  filter.Q.value = .04;
+  panner.pan.setValueAtTime(clamp(pan, -.72, .72), at);
+  panner.pan.linearRampToValueAtTime(clamp(-pan * .35, -.5, .5), at + duration);
+  gain.gain.setValueAtTime(.0001, at);
+  gain.gain.linearRampToValueAtTime(.018 * velocity * bowlVolume, at + .9);
+  gain.gain.setValueAtTime(.014 * velocity * bowlVolume, at + duration * .42);
+  gain.gain.exponentialRampToValueAtTime(.0001, at + duration);
+  left.connect(filter);
+  right.connect(filter);
+  filter.connect(gain).connect(panner).connect(state.audioNodes.musicFilter);
+  left.start(at);
+  right.start(at);
+  left.stop(at + duration + .04);
+  right.stop(at + duration + .04);
+}
+
+function scheduleCrystalHalo(at, frequency, duration, velocity, pan) {
+  const spaceVolume = state.sourceVolumes.musicBackbeat;
+  const oscillator = state.audio.createOscillator();
+  const gain = state.audio.createGain();
+  const filter = state.audio.createBiquadFilter();
+  const panner = state.audio.createStereoPanner();
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(frequency, at);
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(Math.min(6400, frequency * 4.2), at);
+  filter.Q.value = .035;
+  panner.pan.setValueAtTime(clamp(pan, -.78, .78), at);
+  panner.pan.linearRampToValueAtTime(clamp(pan * -.25, -.4, .4), at + duration);
+  gain.gain.setValueAtTime(.0001, at);
+  gain.gain.linearRampToValueAtTime(.007 * velocity * spaceVolume, at + .7);
+  gain.gain.exponentialRampToValueAtTime(.0001, at + duration);
+  oscillator.connect(filter);
+  filter.connect(gain).connect(panner).connect(state.audioNodes.musicFilter);
+  oscillator.start(at);
+  oscillator.stop(at + duration + .04);
+}
+
+function sourceTempoDensity(multiplier) {
+  if (multiplier <= .25) return 4;
+  if (multiplier <= .5) return 2;
+  if (multiplier <= .75) return 2;
+  return 1;
 }
 
 function nextGridTime(now, interval) {
@@ -1302,70 +1370,6 @@ function nextGridTime(now, interval) {
 function gridStepForTime(time, interval) {
   const origin = state.audioStartedAt || time;
   return Math.max(0, Math.round((time - origin) / interval));
-}
-
-function scheduleLowKick(at, velocity) {
-  const kickVolume = state.sourceVolumes.musicKick;
-  const oscillator = state.audio.createOscillator();
-  const beater = state.audio.createOscillator();
-  const gain = state.audio.createGain();
-  const beaterGain = state.audio.createGain();
-  const filter = state.audio.createBiquadFilter();
-  oscillator.type = "sine";
-  beater.type = "sine";
-  const base = state.sourceFrequencies.musicKick;
-  oscillator.frequency.setValueAtTime(base, at);
-  oscillator.frequency.exponentialRampToValueAtTime(base * .53, at + .24);
-  beater.frequency.setValueAtTime(base * 2.15, at);
-  beater.frequency.exponentialRampToValueAtTime(base * 1.14, at + .14);
-  filter.type = "lowpass";
-  filter.frequency.value = 260;
-  filter.Q.value = .22;
-  gain.gain.setValueAtTime(.0001, at);
-  gain.gain.linearRampToValueAtTime(.34 * velocity * kickVolume, at + .038);
-  gain.gain.exponentialRampToValueAtTime(.0001, at + .62);
-  beaterGain.gain.setValueAtTime(.0001, at);
-  beaterGain.gain.linearRampToValueAtTime(.052 * velocity * kickVolume, at + .025);
-  beaterGain.gain.exponentialRampToValueAtTime(.0001, at + .18);
-  beater.connect(beaterGain).connect(filter);
-  oscillator.connect(filter);
-  filter.connect(gain).connect(state.audioNodes.musicGain);
-  beater.start(at);
-  oscillator.start(at);
-  beater.stop(at + .22);
-  oscillator.stop(at + .62);
-}
-
-function scheduleBackbeatThud(at, velocity = 1) {
-  const backbeatVolume = state.sourceVolumes.musicBackbeat;
-  const body = state.audio.createOscillator();
-  const knock = state.audio.createOscillator();
-  const gain = state.audio.createGain();
-  const knockGain = state.audio.createGain();
-  const filter = state.audio.createBiquadFilter();
-  body.type = "sine";
-  knock.type = "sine";
-  const base = state.sourceFrequencies.musicBackbeat;
-  body.frequency.setValueAtTime(base, at);
-  body.frequency.exponentialRampToValueAtTime(base * .62, at + .18);
-  knock.frequency.setValueAtTime(base * 1.74, at);
-  knock.frequency.exponentialRampToValueAtTime(base, at + .1);
-  filter.type = "lowpass";
-  filter.frequency.value = 520;
-  filter.Q.value = .2;
-  gain.gain.setValueAtTime(.0001, at);
-  gain.gain.linearRampToValueAtTime(.14 * velocity * backbeatVolume, at + .06);
-  gain.gain.exponentialRampToValueAtTime(.0001, at + .5);
-  knockGain.gain.setValueAtTime(.0001, at);
-  knockGain.gain.linearRampToValueAtTime(.038 * velocity * backbeatVolume, at + .028);
-  knockGain.gain.exponentialRampToValueAtTime(.0001, at + .16);
-  knock.connect(knockGain).connect(filter);
-  body.connect(filter);
-  filter.connect(gain).connect(state.audioNodes.musicGain);
-  knock.start(at);
-  body.start(at);
-  knock.stop(at + .2);
-  body.stop(at + .52);
 }
 
 function scheduleHeartBeats(now) {
@@ -1517,8 +1521,7 @@ beatBpmInput.addEventListener("change", () => {
   state.beatBpm = HEART_BPM_OPTIONS.includes(selectedBpm) ? selectedBpm : 45;
   if (state.audioNodes) {
     state.audioNodes.nextHeartBeatAt = 0;
-    state.audioNodes.nextMusicKickAt = 0;
-    state.audioNodes.nextMusicBackbeatAt = 0;
+    state.audioNodes.nextMusicStepAt = 0;
     state.musicSession = createMusicSession(state.beatBpm);
     applyMusicSession(state.audio.currentTime);
   }
