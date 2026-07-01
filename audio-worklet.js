@@ -1,6 +1,6 @@
 const TWO_PI = Math.PI * 2;
 const BREATH_CYCLE_SECONDS = 16;
-const BREATH_GAIN = .24;
+const BREATH_GAIN = .32;
 const BREATH_FLOOR = .04;
 
 class MeditationBreathProcessor extends AudioWorkletProcessor {
@@ -9,6 +9,7 @@ class MeditationBreathProcessor extends AudioWorkletProcessor {
     this.playing = false;
     this.enabled = true;
     this.cycleSeconds = BREATH_CYCLE_SECONDS;
+    this.airHz = 760;
     this.startedAt = currentTime;
     this.envelope = 0;
     this.air = 0;
@@ -18,13 +19,15 @@ class MeditationBreathProcessor extends AudioWorkletProcessor {
         this.playing = true;
         this.enabled = message.enabled !== false;
         this.cycleSeconds = Number(message.cycleSeconds) || BREATH_CYCLE_SECONDS;
-        this.startedAt = currentTime;
+        this.startedAt = Number.isFinite(message.startedAt) ? message.startedAt : currentTime;
+        this.airHz = Number(message.airHz) || this.airHz;
       } else if (message.type === "stop") {
         this.playing = false;
       } else if (message.type === "state") {
         this.playing = Boolean(message.playing);
         this.enabled = message.enabled !== false;
         this.cycleSeconds = Number(message.cycleSeconds) || BREATH_CYCLE_SECONDS;
+        this.airHz = Number(message.airHz) || this.airHz;
       }
     };
   }
@@ -50,9 +53,9 @@ class MeditationBreathProcessor extends AudioWorkletProcessor {
     this.envelope += (target - this.envelope) * smoothing;
 
     const rawAir =
-      interpolatedNoise(t * 760 + 11.7) * .11 +
-      interpolatedNoise(t * 1040 + 23.1) * .09 +
-      interpolatedNoise(t * 1380 + 41.3) * .052;
+      interpolatedNoise(t * this.airHz + 11.7) * .11 +
+      interpolatedNoise(t * this.airHz * 1.368 + 23.1) * .09 +
+      interpolatedNoise(t * this.airHz * 1.816 + 41.3) * .052;
     this.air += (rawAir - this.air) * .032;
 
     const chest = .995 + .004 * unipolarSine(.16, t + .2);

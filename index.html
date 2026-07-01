@@ -28,10 +28,6 @@
 
       <form class="controls" id="controls" aria-label="Meditation controls">
         <button id="start" type="button">Start</button>
-        <label class="field" for="volume">
-          <span>Volume</span>
-          <input id="volume" type="range" min="0" max="0.8" value="0.24" step="0.01">
-        </label>
         <label class="field" for="beat-bpm">
           <span>Heart</span>
           <select id="beat-bpm">
@@ -46,8 +42,47 @@
           <input id="binaural" type="checkbox" checked>
           <i aria-hidden="true"></i>
         </label>
+        <button id="eq-toggle" type="button" aria-expanded="false" aria-controls="equalizer">EQ</button>
       </form>
     </div>
+
+    <section class="equalizer" id="equalizer" aria-label="Equalizer" hidden>
+      <div class="eq-header">
+        <label class="eq-target" for="eq-target">
+          <span>EQ</span>
+          <select id="eq-target">
+            <option value="master" selected>Master</option>
+            <option value="breath">Breath</option>
+            <option value="beat">Heartbeat</option>
+            <option value="drone">Drone</option>
+            <option value="music">Music</option>
+          </select>
+        </label>
+        <div class="eq-actions">
+          <button id="eq-export" type="button">Export</button>
+          <button id="eq-reset" type="button">Reset</button>
+        </div>
+      </div>
+      <div class="eq-settings">
+        <label class="eq-trim" for="eq-trim">
+          <span>Trim</span>
+          <input id="eq-trim" type="range" min="-48" max="6" value="0" step="0.5">
+          <output id="eq-trim-output">0 dB</output>
+        </label>
+        <label class="eq-source" id="eq-source" for="eq-source-frequency" hidden>
+          <span>Tune</span>
+          <input id="eq-source-frequency" type="number" min="20" max="5000" value="110" step="1">
+          <output id="eq-source-output">Hz</output>
+        </label>
+        <div class="eq-source-list" id="eq-source-list" hidden></div>
+        <label class="eq-volume" for="volume">
+          <span>Master</span>
+          <input id="volume" type="range" min="0" max="0.8" value="0.24" step="0.01">
+          <output id="eq-volume-output">30%</output>
+        </label>
+      </div>
+      <div class="eq-bands" id="eq-bands"></div>
+    </section>
 
     <section class="readout" aria-label="Meditation layers">
       <div class="layer-control" data-layer-control="universe">
@@ -59,7 +94,7 @@
         </label>
       </div>
       <div class="layer-control" data-layer-control="breath">
-        <span>4 / 4 / 4 / 4</span>
+        <span id="breath-label">760 Hz / 4-4-4-4</span>
         <b>Box breath core</b>
         <label class="layer-switch" aria-label="Toggle breath core">
           <input class="layer-toggle" type="checkbox" data-layer="breath" checked>
@@ -75,7 +110,7 @@
         </label>
       </div>
       <div class="layer-control" data-layer-control="drone">
-        <span>110 Hz / 220 Hz</span>
+        <span id="drone-label">110 Hz / 220 Hz</span>
         <b>Low drone</b>
         <label class="layer-switch" aria-label="Toggle low drone">
           <input class="layer-toggle" type="checkbox" data-layer="drone" checked>
@@ -83,10 +118,10 @@
         </label>
       </div>
       <div class="layer-control" data-layer-control="music">
-        <span>16 sec phrase</span>
-        <b>Lo-fi music layer</b>
-        <label class="layer-switch" aria-label="Toggle lo-fi music layer">
-          <input class="layer-toggle" type="checkbox" data-layer="music" checked>
+        <span id="music-label">K 72 Hz .5x / B 180 Hz .25x</span>
+        <b>Music</b>
+        <label class="layer-switch" aria-label="Toggle music">
+          <input class="layer-toggle" type="checkbox" data-layer="music">
           <i aria-hidden="true"></i>
         </label>
       </div>
