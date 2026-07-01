@@ -39,6 +39,7 @@ const BREATH_SIDE_SECONDS = 4;
 const BREATH_CYCLE_SECONDS = 16;
 const MUSIC_PHRASE_SECONDS = 16;
 const HEART_BPM_OPTIONS = [45, 60, 75, 90];
+const DRONE_TONE_FREQUENCY = 100;
 const DRONE_BASE_GAIN = .026;
 const HEART_BASE_GAIN = .82;
 const BREATH_BASE_GAIN = 1.12;
@@ -108,7 +109,7 @@ const musicPoints = createUniverseProjectionPoints(MUSIC_POINT_COUNT, 23, Math.f
 const state = {
   running: false,
   depth: 1.32,
-  volume: Number(volumeInput.value),
+  volume: .4,
   beatBpm: Number(beatBpmInput.value),
   binaural: binauralInput.checked,
   startedAt: performance.now() / 1000,
@@ -120,15 +121,15 @@ const state = {
     music: false,
   },
   layerVolumes: {
-    breath: .4,
-    beat: 1,
-    drone: 1,
+    breath: .5,
+    beat: .75,
+    drone: 1.5,
     music: 1,
   },
   sourceFrequencies: {
     breath: 760,
     beat: 76,
-    drone: 110,
+    drone: 7.83,
     musicKick: 72,
     musicBackbeat: 180,
   },
@@ -414,9 +415,10 @@ function updateThreeDroneLayer(layer, radius, elapsed, waveHeight) {
     const ny = layer.directions[offset + 1];
     const nz = layer.directions[offset + 2];
     const phase = layer.phases[index] * TWO_PI;
-    const left = sine(frequencies.left, elapsed + phase / TWO_PI);
-    const right = sine(frequencies.right, elapsed + phase / TWO_PI);
-    const signal = state.binaural ? (left + right) * .5 : left;
+    const t = elapsed + phase / TWO_PI;
+    const carrier = sine(frequencies.left, t);
+    const modulation = .65 + .35 * sine(frequencies.modulation, t);
+    const signal = carrier * modulation;
     const r = radius + signal * waveHeight;
     positions[offset] = nx * r;
     positions[offset + 1] = ny * r;
@@ -530,9 +532,10 @@ function drawCanvasDronePoints(points, radiusScale, scaleFactor, rotationX, rota
   const waveHeight = state.running ? .004 : 0;
   ctx.fillStyle = `rgba(${TRACE_RGB}, ${alpha})`;
   for (const source of points) {
-    const left = sine(frequencies.left, elapsed + source.phase);
-    const right = sine(frequencies.right, elapsed + source.phase);
-    const signal = state.binaural ? (left + right) * .5 : left;
+    const t = elapsed + source.phase;
+    const carrier = sine(frequencies.left, t);
+    const modulation = .65 + .35 * sine(frequencies.modulation, t);
+    const signal = carrier * modulation;
     const point = rotatePoint(
       {
         x: source.x * (radiusScale + signal * waveHeight),
@@ -702,7 +705,7 @@ function syncControls() {
 function syncLayerLabels() {
   breathLabel.textContent = `${formatHz(state.sourceFrequencies.breath)} / 4-4-4-4`;
   beatLabel.textContent = `${state.beatBpm} bpm / ${formatHz(state.sourceFrequencies.beat)}`;
-  droneLabel.textContent = `${formatHz(state.sourceFrequencies.drone)} / ${formatHz(state.sourceFrequencies.drone * 2)}`;
+  droneLabel.textContent = `${formatHz(DRONE_TONE_FREQUENCY)} / ${formatHz(state.sourceFrequencies.drone)} mod`;
   musicLabel.textContent = `K ${formatHz(state.sourceFrequencies.musicKick)} ${formatTempo(state.sourceTempos.musicKick)} / B ${formatHz(state.sourceFrequencies.musicBackbeat)} ${formatTempo(state.sourceTempos.musicBackbeat)}`;
 }
 
@@ -723,7 +726,7 @@ function sourceFrequencyConfig(target) {
   return {
     breath: { min: 80, max: 5000, step: 1 },
     beat: { min: 30, max: 180, step: 1 },
-    drone: { min: 20, max: 440, step: 1 },
+    drone: { min: 1, max: 40, step: .01 },
     musicKick: { min: 35, max: 140, step: 1 },
     musicBackbeat: { min: 80, max: 360, step: 1 },
   }[target] || { min: 20, max: 5000, step: 1 };
@@ -787,7 +790,7 @@ function syncTuneControls() {
     volume.step = String(volumeConfig.step);
     volume.value = String(state.sourceVolumes[control.key] ?? 1);
     volume.dataset.sourceVolume = control.key;
-    volumeOutput.value = `${Math.round((state.sourceVolumes[control.key] ?? 1) / volumeConfig.max * 100)}%`;
+    volumeOutput.value = formatVolume(state.sourceVolumes[control.key] ?? 1);
     sourceTempoOptions().forEach((option) => {
       const item = document.createElement("option");
       item.value = String(option);
@@ -811,7 +814,7 @@ function syncVolumeControls() {
   volumeInput.max = String(max);
   volumeInput.step = ".01";
   volumeInput.value = String(value);
-  eqVolumeOutput.value = `${Math.round(value / max * 100)}%`;
+  eqVolumeOutput.value = target ? formatVolume(value) : `${Math.round(value / max * 100)}%`;
 }
 
 function applySourceFrequencyInput(key, value) {
@@ -881,7 +884,8 @@ function exportSoundSettings() {
       drone: {
         enabled: state.layers.drone,
         volume: state.layerVolumes.drone,
-        frequencyHz: state.sourceFrequencies.drone,
+        baseFrequencyHz: DRONE_TONE_FREQUENCY,
+        modulationHz: state.sourceFrequencies.drone,
         eq: cloneEqSettings(state.eq.drone),
       },
       music: {
@@ -935,6 +939,10 @@ function formatTempo(value) {
   return `${String(rounded).replace(/^0\./, ".")}x`;
 }
 
+function formatVolume(value) {
+  return `${Math.round((Number(value) || 0) * 100)}%`;
+}
+
 function eqGainPosition(gain) {
   return clamp((gain + 12) / 24, 0, 1);
 }
@@ -970,10 +978,11 @@ async function startAudio() {
     const merger = audio.createChannelMerger(2);
     const leftDrone = audio.createOscillator();
     const rightDrone = audio.createOscillator();
-    const droneOvertone = audio.createOscillator();
     const leftGain = audio.createGain();
     const rightGain = audio.createGain();
-    const droneOvertoneGain = audio.createGain();
+    const droneModulator = audio.createOscillator();
+    const droneModDepth = audio.createGain();
+    const droneModGain = audio.createGain();
     const droneGain = audio.createGain();
     const heartGain = audio.createGain();
     const breathGain = audio.createGain();
@@ -988,7 +997,7 @@ async function startAudio() {
     let breathSource = null;
     leftDrone.type = "sine";
     rightDrone.type = "sine";
-    droneOvertone.type = "sine";
+    droneModulator.type = "sine";
     breathGain.gain.value = 0;
     breathHighpass.type = "highpass";
     breathHighpass.frequency.value = 340;
@@ -1015,11 +1024,13 @@ async function startAudio() {
     musicAnalyser.smoothingTimeConstant = .58;
     leftGain.gain.value = 1;
     rightGain.gain.value = 1;
-    droneOvertoneGain.gain.value = .32;
+    droneModulator.frequency.value = state.sourceFrequencies.drone;
+    droneModDepth.gain.value = .35;
+    droneModGain.gain.value = .65;
     leftDrone.connect(leftGain).connect(merger, 0, 0);
     rightDrone.connect(rightGain).connect(merger, 0, 1);
-    merger.connect(droneGain);
-    droneOvertone.connect(droneOvertoneGain).connect(droneGain);
+    droneModulator.connect(droneModDepth).connect(droneModGain.gain);
+    merger.connect(droneModGain).connect(droneGain);
     connectEqualizerChain(droneGain, eqNodes.drone.filters, eqNodes.drone.trimGain);
     eqNodes.drone.trimGain.connect(master);
     connectEqualizerChain(heartGain, eqNodes.beat.filters, eqNodes.beat.trimGain);
@@ -1049,7 +1060,7 @@ async function startAudio() {
     master.gain.value = 0;
     leftDrone.start();
     rightDrone.start();
-    droneOvertone.start();
+    droneModulator.start();
     state.audio = audio;
     state.audioNodes = {
       master,
@@ -1062,7 +1073,7 @@ async function startAudio() {
       breathSource,
       leftDrone,
       rightDrone,
-      droneOvertone,
+      droneModulator,
       musicGain,
       musicLimiter,
       musicFilter,
@@ -1109,7 +1120,7 @@ function updateAudio() {
   const frequencies = droneFrequencies();
   state.audioNodes.leftDrone.frequency.setTargetAtTime(frequencies.left, now, .08);
   state.audioNodes.rightDrone.frequency.setTargetAtTime(frequencies.right, now, .08);
-  state.audioNodes.droneOvertone.frequency.setTargetAtTime(frequencies.overtone, now, .08);
+  state.audioNodes.droneModulator.frequency.setTargetAtTime(frequencies.modulation, now, .08);
   state.audioNodes.droneGain.gain.setTargetAtTime(state.layers.drone && state.running ? DRONE_BASE_GAIN * state.layerVolumes.drone : 0, now, .12);
   state.audioNodes.heartGain.gain.setTargetAtTime(state.layers.beat && state.running ? HEART_BASE_GAIN * state.layerVolumes.beat : 0, now, .12);
   state.audioNodes.musicGain.gain.setTargetAtTime(state.layers.music && state.running ? MUSIC_BASE_GAIN * state.layerVolumes.music : 0, now, .18);
@@ -1185,11 +1196,10 @@ function updateBreathAudio(now) {
 }
 
 function droneFrequencies() {
-  const base = state.sourceFrequencies.drone;
   return {
-    left: base,
-    right: state.binaural ? base + 4 : base,
-    overtone: base * 2,
+    left: DRONE_TONE_FREQUENCY,
+    right: DRONE_TONE_FREQUENCY,
+    modulation: state.sourceFrequencies.drone,
   };
 }
 
@@ -1573,7 +1583,7 @@ eqSourceList.addEventListener("input", (event) => {
   const volume = event.target.closest("[data-source-volume]");
   if (volume) {
     applySourceVolumeInput(volume.dataset.sourceVolume, volume.value);
-    volume.nextElementSibling.value = `${Math.round(Number(volume.value) / Number(volume.max) * 100)}%`;
+    volume.nextElementSibling.value = formatVolume(volume.value);
     return;
   }
   const tempoInput = event.target.closest("[data-source-tempo]");
