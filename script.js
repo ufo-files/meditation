@@ -16,9 +16,11 @@ const UNIVERSE_DEPTH_RANGE = .3;
 const CORE_POINT_COUNT = 3200;
 const BEAT_POINT_COUNT = 2600;
 const DRONE_POINT_COUNT = 2400;
+const MUSIC_POINT_COUNT = 3000;
 const TRACE_RGB = "17, 17, 17";
 const BREATH_SIDE_SECONDS = 4;
 const BREATH_CYCLE_SECONDS = 16;
+const MUSIC_PHRASE_SECONDS = 16;
 const HEART_BPM_OPTIONS = [45, 60, 75, 90];
 
 const catalog = window.UNIVERSE_STARS_DATA || { count: 0, stars: [] };
@@ -26,6 +28,7 @@ const stars = prepareStars((catalog.stars || []).slice(0, STAR_COUNT_TARGET));
 const breathPoints = createUniverseProjectionPoints(CORE_POINT_COUNT, 7);
 const beatPoints = createUniverseProjectionPoints(BEAT_POINT_COUNT, 19);
 const dronePoints = createUniverseProjectionPoints(DRONE_POINT_COUNT, 31, Math.floor(stars.length * .37));
+const musicPoints = createUniverseProjectionPoints(MUSIC_POINT_COUNT, 23, Math.floor(stars.length * .61));
 
 const state = {
   running: false,
@@ -39,12 +42,15 @@ const state = {
     breath: true,
     beat: true,
     drone: true,
+    music: true,
   },
   visual: {
     breath: 0,
     beat: 0,
+    music: 0,
     active: .32,
   },
+  musicSession: null,
   audio: null,
   audioStartedAt: 0,
   audioNodes: null,
@@ -98,15 +104,16 @@ function createThreeRenderer(THREE) {
   const breath = createThreeProceduralLayer(THREE, texture, breathPoints, .5, .023, .62);
   const beat = createThreeProceduralLayer(THREE, texture, beatPoints, 1.16, .015, .3);
   const drone = createThreeProceduralLayer(THREE, texture, dronePoints, .2, .014, .2);
+  const music = createThreeProceduralLayer(THREE, texture, musicPoints, 1.42, .018, .18);
 
   camera.position.z = 5.2;
   renderer.setClearColor(0xf6f5ef, 0);
   renderer.setPixelRatio(Math.max(1, Math.min(2, window.devicePixelRatio || 1)));
   if ("outputColorSpace" in renderer && THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
-  root.add(universe.points, breath.points, beat.points, drone.points);
+  root.add(universe.points, music.points, breath.points, beat.points, drone.points);
   scene.add(root);
 
-  return { THREE, scene, camera, renderer, root, universe, breath, beat, drone };
+  return { THREE, scene, camera, renderer, root, universe, breath, beat, drone, music };
 }
 
 function createThreeStarLayer(THREE, texture) {
@@ -210,6 +217,7 @@ function drawThree(elapsed) {
   const active = state.visual.active;
   const breath = state.visual.breath;
   const beat = state.visual.beat;
+  const music = state.visual.music;
   view.renderer.setSize(width, height, false);
   view.camera.aspect = width / Math.max(1, height);
   view.camera.updateProjectionMatrix();
@@ -220,8 +228,10 @@ function drawThree(elapsed) {
   view.breath.points.visible = state.layers.breath;
   view.beat.points.visible = state.layers.beat;
   view.drone.points.visible = state.layers.drone;
+  view.music.points.visible = state.layers.music;
   view.universe.points.scale.setScalar(state.depth);
   view.universe.material.opacity = state.running ? .92 : .72;
+  updateThreeProceduralLayer(view.music, 1.38 + music * .08, state.running ? .01 + music * .012 : 0, .12 + music * .18);
   updateThreeProceduralLayer(view.breath, .42 + breath * .78, state.running ? .024 : 0, .44 + breath * .32);
   updateThreeHeartLayer(view.beat, 1.16, beat, state.running);
   updateThreeDroneLayer(view.drone, .2, state.running ? audioElapsed(elapsed) : elapsed, state.running ? .007 : 0);
@@ -296,9 +306,11 @@ function drawCanvas(elapsed) {
   const rotationX = elapsed * .04 * active - .18;
   const breath = state.visual.breath;
   const beat = state.visual.beat;
+  const music = state.visual.music;
 
   ctx.clearRect(0, 0, width, height);
   if (state.layers.universe) drawCanvasStars({ width, height, scale, rotationX, rotationY });
+  if (state.layers.music) drawCanvasSpherePoints(musicPoints, .74 + music * .04, 1.06, rotationX * .82, rotationY * 1.12, .1 + music * .16, state.running ? .006 + music * .008 : 0);
   if (state.layers.breath) drawCanvasSpherePoints(breathPoints, .24 + breath * .45, .9, rotationX, rotationY, .26 + breath * .24, state.running ? .025 : 0);
   if (state.layers.beat) drawCanvasSpherePoints(beatPoints, .62 + beat * .045, .74, rotationX * .9, rotationY * 1.08, .12 + beat * .22, state.running ? .004 : 0);
   if (state.layers.drone) drawCanvasDronePoints(dronePoints, .105, .9, rotationX * 1.1, rotationY * .82, .16, state.running ? audioElapsed(elapsed) : elapsed);
@@ -307,9 +319,11 @@ function drawCanvas(elapsed) {
 function updateVisualState(elapsed) {
   const targetBreath = state.running ? boxBreath(elapsed, BREATH_SIDE_SECONDS) : 0;
   const targetBeat = state.running ? beatEnvelope(elapsed, state.beatBpm) : 0;
+  const targetMusic = state.running ? musicEnvelope(elapsed, state.beatBpm) : 0;
   const targetActive = state.running ? 1 : .32;
   state.visual.breath += (targetBreath - state.visual.breath) * .055;
   state.visual.beat += (targetBeat - state.visual.beat) * .12;
+  state.visual.music += (targetMusic - state.visual.music) * .08;
   state.visual.active += (targetActive - state.visual.active) * .045;
 }
 
@@ -445,6 +459,16 @@ function beatEnvelope(elapsed, bpm) {
   return Math.exp(-phase * 8);
 }
 
+function musicEnvelope(elapsed, bpm) {
+  const phrase = positiveModulo(elapsed, MUSIC_PHRASE_SECONDS);
+  const phraseSwell = .5 + .5 * Math.sin(TWO_PI * phrase / MUSIC_PHRASE_SECONDS - Math.PI / 2);
+  const beatInterval = 60 / Math.max(1, bpm);
+  const stepInterval = beatInterval * 2;
+  const step = positiveModulo(phrase, stepInterval) / stepInterval;
+  const pluck = Math.exp(-step * 5.2);
+  return clamp(.22 + phraseSwell * .38 + pluck * .28, 0, 1);
+}
+
 function syncControls() {
   startButton.textContent = state.running ? "Stop" : "Start";
   startButton.classList.toggle("active", state.running);
@@ -498,6 +522,13 @@ async function startAudio() {
     const droneGain = audio.createGain();
     const heartGain = audio.createGain();
     const breathGain = audio.createGain();
+    const musicGain = audio.createGain();
+    const musicPadGain = audio.createGain();
+    const musicFilter = audio.createBiquadFilter();
+    const musicDelay = audio.createDelay(2);
+    const musicFeedback = audio.createGain();
+    const musicWetGain = audio.createGain();
+    const musicPadVoices = [];
     let breathSource = null;
     leftDrone.type = "sine";
     rightDrone.type = "sine";
@@ -505,6 +536,14 @@ async function startAudio() {
     breathGain.gain.value = 0;
     droneGain.gain.value = state.layers.drone ? .056 : 0;
     heartGain.gain.value = 1.15;
+    musicGain.gain.value = 0;
+    musicPadGain.gain.value = .045;
+    musicFilter.type = "lowpass";
+    musicFilter.frequency.value = 860;
+    musicFilter.Q.value = .8;
+    musicDelay.delayTime.value = .46;
+    musicFeedback.gain.value = .34;
+    musicWetGain.gain.value = .24;
     leftGain.gain.value = 1;
     rightGain.gain.value = 1;
     droneOvertoneGain.gain.value = .32;
@@ -513,6 +552,12 @@ async function startAudio() {
     merger.connect(droneGain).connect(master);
     droneOvertone.connect(droneOvertoneGain).connect(droneGain);
     heartGain.connect(master);
+    musicFilter.connect(musicGain);
+    musicFilter.connect(musicDelay);
+    musicDelay.connect(musicFeedback).connect(musicDelay);
+    musicDelay.connect(musicWetGain).connect(musicGain);
+    musicGain.connect(master);
+    createMusicPad(audio, musicPadGain, musicFilter, musicPadVoices);
     if (audio.audioWorklet) {
       try {
         await audio.audioWorklet.addModule("audio-worklet.js");
@@ -532,12 +577,35 @@ async function startAudio() {
     rightDrone.start();
     droneOvertone.start();
     state.audio = audio;
-    state.audioNodes = { master, droneGain, heartGain, breathGain, breathSource, leftDrone, rightDrone, droneOvertone, nextHeartBeatAt: 0 };
+    state.audioNodes = {
+      master,
+      droneGain,
+      heartGain,
+      breathGain,
+      breathSource,
+      leftDrone,
+      rightDrone,
+      droneOvertone,
+      musicGain,
+      musicFilter,
+      musicPadGain,
+      musicDelay,
+      musicFeedback,
+      musicWetGain,
+      musicPadVoices,
+      nextHeartBeatAt: 0,
+      nextMusicNoteAt: 0,
+      musicStep: 0,
+    };
   }
   if (state.audio.state === "suspended") await state.audio.resume();
   state.startedAt = performance.now() / 1000;
   state.audioStartedAt = state.audio.currentTime;
   state.audioNodes.nextHeartBeatAt = 0;
+  state.audioNodes.nextMusicNoteAt = 0;
+  state.audioNodes.musicStep = 0;
+  state.musicSession = createMusicSession(state.beatBpm);
+  applyMusicSession(state.audio.currentTime);
   if (state.audioNodes.breathSource) {
     state.audioNodes.breathSource.port.postMessage({
       type: "start",
@@ -551,6 +619,7 @@ async function startAudio() {
       if (!state.audio || !state.running) return;
       updateBreathAudio(state.audio.currentTime);
       scheduleHeartBeats(state.audio.currentTime);
+      scheduleMusic(state.audio.currentTime);
     }, 50);
   }
 }
@@ -563,6 +632,8 @@ function updateAudio() {
   state.audioNodes.rightDrone.frequency.setTargetAtTime(frequencies.right, now, .08);
   state.audioNodes.droneOvertone.frequency.setTargetAtTime(frequencies.overtone, now, .08);
   state.audioNodes.droneGain.gain.setTargetAtTime(state.layers.drone && state.running ? .056 : 0, now, .12);
+  state.audioNodes.musicGain.gain.setTargetAtTime(state.layers.music && state.running ? .34 : 0, now, .18);
+  state.audioNodes.musicFilter.frequency.setTargetAtTime(state.layers.music && state.running ? (state.musicSession?.filterHz || 860) : 520, now, .4);
   state.audioNodes.master.gain.setTargetAtTime(state.running ? state.volume : 0, now, .08);
   if (state.audioNodes.breathSource) {
     state.audioNodes.breathSource.port.postMessage({
@@ -574,6 +645,7 @@ function updateAudio() {
   }
   updateBreathAudio(now);
   scheduleHeartBeats(now);
+  scheduleMusic(now);
 }
 
 function updateBreathAudio(now) {
@@ -598,6 +670,124 @@ function audioElapsed(fallbackElapsed) {
 
 function sine(frequency, t) {
   return Math.sin(TWO_PI * frequency * t);
+}
+
+function createMusicPad(audio, padGain, destination, voices) {
+  padGain.connect(destination);
+  for (let index = 0; index < 5; index += 1) {
+    const oscillator = audio.createOscillator();
+    const gain = audio.createGain();
+    oscillator.type = "triangle";
+    oscillator.frequency.value = 110;
+    oscillator.detune.value = 0;
+    gain.gain.value = 0;
+    oscillator.connect(gain).connect(padGain);
+    oscillator.start();
+    voices.push({ oscillator, gain });
+  }
+}
+
+function createMusicSession(bpm) {
+  const seed = createSessionSeed();
+  const random = mulberry32(seed);
+  const beatInterval = 60 / Math.max(1, bpm);
+  const roots = [98, 103.83, 110, 123.47, 130.81, 146.83];
+  const root = roots[Math.floor(random() * roots.length)];
+  const scaleRatios = [
+    [1, 1.2, 1.3333, 1.5, 1.8, 2, 2.4],
+    [1, 1.1667, 1.3333, 1.5, 1.75, 2, 2.3333],
+    [1, 1.125, 1.3333, 1.5, 1.6875, 2, 2.25],
+  ][Math.floor(random() * 3)];
+  const scale = scaleRatios.map((ratio) => root * ratio);
+  const phraseBeats = Math.round(MUSIC_PHRASE_SECONDS / beatInterval);
+  const pattern = createMusicPattern(random, scale, phraseBeats);
+  const pad = [scale[0] / 2, scale[2] / 2, scale[3] / 2, scale[4] / 2, scale[5] / 2].map((frequency, index) => ({
+    frequency,
+    gain: [.18, .13, .1, .075, .045][index],
+    detune: (random() - .5) * 12,
+  }));
+
+  return {
+    seed,
+    scale,
+    pattern,
+    pad,
+    filterHz: 640 + random() * 420,
+    delayTime: clamp(beatInterval * ([.5, .75, 1][Math.floor(random() * 3)]), .18, 1.2),
+    feedback: .26 + random() * .14,
+    wet: .2 + random() * .12,
+  };
+}
+
+function createMusicPattern(random, scale, phraseBeats) {
+  const pattern = [];
+  let scaleIndex = Math.floor(random() * 3) + 1;
+  for (let step = 0; step < phraseBeats; step += 1) {
+    const anchor = step === 0 || step === Math.floor(phraseBeats / 2);
+    const rest = !anchor && random() < .46;
+    if (rest) {
+      pattern.push(null);
+      continue;
+    }
+    scaleIndex = clamp(scaleIndex + [-2, -1, 0, 1, 1, 2][Math.floor(random() * 6)], 0, scale.length - 1);
+    pattern.push({
+      frequency: scale[scaleIndex] * (random() < .18 ? .5 : 1),
+      velocity: anchor ? .78 : .28 + random() * .36,
+    });
+  }
+  return pattern;
+}
+
+function applyMusicSession(now) {
+  if (!state.audioNodes || !state.musicSession) return;
+  const session = state.musicSession;
+  session.pad.forEach((voice, index) => {
+    const node = state.audioNodes.musicPadVoices[index];
+    if (!node) return;
+    node.oscillator.frequency.setTargetAtTime(voice.frequency, now, .45);
+    node.oscillator.detune.setTargetAtTime(voice.detune, now, .45);
+    node.gain.gain.setTargetAtTime(voice.gain, now, .45);
+  });
+  state.audioNodes.musicFilter.frequency.setTargetAtTime(session.filterHz, now, .5);
+  state.audioNodes.musicDelay.delayTime.setTargetAtTime(session.delayTime, now, .25);
+  state.audioNodes.musicFeedback.gain.setTargetAtTime(session.feedback, now, .25);
+  state.audioNodes.musicWetGain.gain.setTargetAtTime(session.wet, now, .25);
+}
+
+function scheduleMusic(now) {
+  if (!state.audio || !state.audioNodes || !state.layers.music || !state.running) return;
+  if (!state.musicSession) state.musicSession = createMusicSession(state.beatBpm);
+  const interval = 60 / Math.max(1, state.beatBpm);
+  if (!state.audioNodes.nextMusicNoteAt || state.audioNodes.nextMusicNoteAt < now) {
+    state.audioNodes.nextMusicNoteAt = now + .08;
+  }
+  while (state.audioNodes.nextMusicNoteAt < now + .7) {
+    const at = state.audioNodes.nextMusicNoteAt;
+    const step = state.audioNodes.musicStep % state.musicSession.pattern.length;
+    const note = state.musicSession.pattern[step];
+    if (note) scheduleMusicPluck(at, note.frequency, note.velocity);
+    state.audioNodes.nextMusicNoteAt += interval;
+    state.audioNodes.musicStep += 1;
+  }
+}
+
+function scheduleMusicPluck(at, frequency, velocity) {
+  const oscillator = state.audio.createOscillator();
+  const gain = state.audio.createGain();
+  const filter = state.audio.createBiquadFilter();
+  oscillator.type = "triangle";
+  oscillator.frequency.setValueAtTime(frequency * .996, at);
+  oscillator.frequency.exponentialRampToValueAtTime(frequency, at + .08);
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(1180, at);
+  filter.frequency.exponentialRampToValueAtTime(420, at + 1.1);
+  filter.Q.value = .7;
+  gain.gain.setValueAtTime(.0001, at);
+  gain.gain.linearRampToValueAtTime(.16 * velocity, at + .018);
+  gain.gain.exponentialRampToValueAtTime(.0001, at + 1.1);
+  oscillator.connect(gain).connect(filter).connect(state.audioNodes.musicFilter);
+  oscillator.start(at);
+  oscillator.stop(at + 1.35);
 }
 
 function scheduleHeartBeats(now) {
@@ -673,6 +863,26 @@ function hashSigned(index) {
   return hashUnit(index) * 2 - 1;
 }
 
+function createSessionSeed() {
+  if (window.crypto?.getRandomValues) {
+    const values = new Uint32Array(1);
+    window.crypto.getRandomValues(values);
+    return values[0] || Math.floor(Math.random() * 2 ** 32);
+  }
+  return Math.floor(Math.random() * 2 ** 32);
+}
+
+function mulberry32(seed) {
+  let value = seed >>> 0;
+  return () => {
+    value += 0x6d2b79f5;
+    let mixed = value;
+    mixed = Math.imul(mixed ^ (mixed >>> 15), mixed | 1);
+    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 function smoothstep(value) {
   const x = clamp(value, 0, 1);
   return x * x * (3 - 2 * x);
@@ -698,6 +908,13 @@ volumeInput.addEventListener("input", () => {
 beatBpmInput.addEventListener("change", () => {
   const selectedBpm = Number(beatBpmInput.value);
   state.beatBpm = HEART_BPM_OPTIONS.includes(selectedBpm) ? selectedBpm : 45;
+  if (state.audioNodes) {
+    state.audioNodes.nextHeartBeatAt = 0;
+    state.audioNodes.nextMusicNoteAt = 0;
+    state.audioNodes.musicStep = 0;
+    state.musicSession = createMusicSession(state.beatBpm);
+    applyMusicSession(state.audio.currentTime);
+  }
   syncControls();
 });
 binauralInput.addEventListener("change", () => {

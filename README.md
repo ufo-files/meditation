@@ -14,7 +14,7 @@ The universe layer is generated from the HYG Database v3.8 star catalog. The app
 Source: https://github.com/astronexus/HYG-Database/blob/main/hyg/v3/hyg_v38.csv.gz  
 License: CC BY-SA 4.0
 
-The breath, beat, and drone layers are meditation overlays. They are not astronomical measurements.
+The breath, beat, drone, and music layers are meditation overlays. They are not astronomical measurements. Box breathing stays fixed at a 16-second cycle; the heart-rate and music pulses use BPM options that divide evenly into that cycle.
 
 ## Screenshots
 
