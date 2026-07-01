@@ -1,6 +1,6 @@
 const TWO_PI = Math.PI * 2;
 const BREATH_CYCLE_SECONDS = 16;
-const BREATH_GAIN = .44;
+const BREATH_GAIN = .24;
 const BREATH_FLOOR = .04;
 
 class MeditationBreathProcessor extends AudioWorkletProcessor {
@@ -10,11 +10,8 @@ class MeditationBreathProcessor extends AudioWorkletProcessor {
     this.enabled = true;
     this.cycleSeconds = BREATH_CYCLE_SECONDS;
     this.startedAt = currentTime;
-    this.noiseIndex = 0;
-    this.low = 0;
-    this.band = 0;
-    this.warm = 0;
     this.envelope = 0;
+    this.air = 0;
     this.port.onmessage = (event) => {
       const message = event.data || {};
       if (message.type === "start") {
@@ -38,14 +35,8 @@ class MeditationBreathProcessor extends AudioWorkletProcessor {
     const right = output[1] || left;
 
     for (let index = 0; index < left.length; index += 1) {
-      if (!this.playing || !this.enabled) {
-        left[index] = 0;
-        right[index] = 0;
-        continue;
-      }
-
       const t = currentTime + index / sampleRate - this.startedAt;
-      const sample = this.sampleBreath(t) * BREATH_GAIN;
+      const sample = this.sampleBreath(t, this.playing && this.enabled) * BREATH_GAIN;
       left[index] = sample;
       right[index] = sample;
     }
@@ -53,19 +44,35 @@ class MeditationBreathProcessor extends AudioWorkletProcessor {
     return true;
   }
 
-  sampleBreath(t) {
-    const target = breathSwell(t, this.cycleSeconds);
-    const raw = hashNoise(this.noiseIndex);
-    this.noiseIndex += 1;
-    this.low += (raw - this.low) * .006;
-    this.band += (raw - this.band) * .028;
-    this.warm += ((this.band - this.low * .65) - this.warm) * .045;
-    this.envelope += (target - this.envelope) * .00078;
+  sampleBreath(t, active) {
+    const target = active ? breathAirEnvelope(t, this.cycleSeconds) : 0;
+    const smoothing = target < this.envelope ? .00013 : .00042;
+    this.envelope += (target - this.envelope) * smoothing;
 
-    const body = sine(172, t) * .044 + sine(229, t + .17) * .03;
-    const airPad = this.warm * .42 + body;
-    return softClip(airPad * this.envelope);
+    const rawAir =
+      interpolatedNoise(t * 760 + 11.7) * .11 +
+      interpolatedNoise(t * 1040 + 23.1) * .09 +
+      interpolatedNoise(t * 1380 + 41.3) * .052;
+    this.air += (rawAir - this.air) * .032;
+
+    const chest = .995 + .004 * unipolarSine(.16, t + .2);
+    const mouth = .93 + .026 * unipolarSine(.25, t + 1.6) + .012 * unipolarSine(.43, t);
+    return softClip(this.air * this.envelope * chest * mouth);
   }
+}
+
+function breathAirEnvelope(t, cycleSeconds = BREATH_CYCLE_SECONDS) {
+  const length = Math.max(4, cycleSeconds);
+  const side = length / 4;
+  const phase = positiveModulo(t, length);
+  if (phase < side) return breathLobe(phase / side);
+  if (phase < side * 2) return 0;
+  if (phase < side * 3) return breathLobe((phase - side * 2) / side) * .9;
+  return 0;
+}
+
+function breathLobe(value) {
+  return Math.pow(Math.sin(Math.PI * clamp(value, 0, 1)), 1.05);
 }
 
 function breathSwell(t, cycleSeconds = BREATH_CYCLE_SECONDS) {
