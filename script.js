@@ -119,7 +119,7 @@ const state = {
     breath: true,
     beat: true,
     drone: true,
-    music: false,
+    music: true,
   },
   layerVolumes: {
     breath: .5,
