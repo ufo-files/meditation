@@ -4,7 +4,6 @@ const startButton = document.getElementById("start");
 const appSwitcher = document.getElementById("app-switcher");
 const statusEl = document.getElementById("status");
 const volumeInput = document.getElementById("volume");
-const beatBpmInput = document.getElementById("beat-bpm");
 const breathLabel = document.getElementById("breath-label");
 const beatLabel = document.getElementById("beat-label");
 const droneLabel = document.getElementById("drone-label");
@@ -50,7 +49,7 @@ const BREATH_SIDE_SECONDS = 4;
 const BREATH_CYCLE_SECONDS = BREATH_SIDE_SECONDS * 4;
 const MUSIC_PHRASE_SECONDS = 16;
 const MUSIC_GRID_DIVISIONS = 4;
-const HEART_BPM_OPTIONS = [45, 60, 75, 90];
+const HEART_BPM = 48;
 const CRYSTAL_BOWLS = [
   { size: "very large", ratio: .51, position: 0, pan: -.42, duration: 10.5, gain: .52, source: "musicKick" },
   { size: "large", ratio: .68, position: 18, pan: .28, duration: 8.2, gain: .34, source: "musicKick" },
@@ -134,7 +133,7 @@ const state = {
   running: false,
   depth: 1.32,
   volume: .4,
-  beatBpm: Number(beatBpmInput.value),
+  beatBpm: HEART_BPM,
   binaural: binauralInput.checked,
   startedAt: performance.now() / 1000,
   layers: {
@@ -713,7 +712,6 @@ function syncControls() {
   equalizerPanel.hidden = !state.eqOpen;
   eqTargetInput.value = state.eqTarget;
   binauralInput.checked = state.binaural;
-  beatBpmInput.value = String(state.beatBpm);
   syncLayerLabels();
   syncVolumeControls();
 
@@ -1547,17 +1545,6 @@ volumeInput.addEventListener("input", () => {
     state.volume = Number(volumeInput.value);
   }
   updateAudio();
-  syncControls();
-});
-beatBpmInput.addEventListener("change", () => {
-  const selectedBpm = Number(beatBpmInput.value);
-  state.beatBpm = HEART_BPM_OPTIONS.includes(selectedBpm) ? selectedBpm : 45;
-  if (state.audioNodes) {
-    state.audioNodes.nextHeartBeatAt = 0;
-    state.audioNodes.nextMusicStepAt = 0;
-    state.musicSession = createMusicSession(state.beatBpm);
-    applyMusicSession(state.audio.currentTime);
-  }
   syncControls();
 });
 binauralInput.addEventListener("change", () => {
