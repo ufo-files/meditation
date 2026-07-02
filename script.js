@@ -47,8 +47,8 @@ const MUSIC_VISUAL_SIGNAL_GAIN = 4;
 const TRACE_RGB = "17, 17, 17";
 const BREATH_SIDE_SECONDS = 4;
 const BREATH_CYCLE_SECONDS = BREATH_SIDE_SECONDS * 4;
-const MUSIC_PHRASE_SECONDS = 16;
-const MUSIC_GRID_DIVISIONS = 4;
+const MUSIC_PHRASE_SECONDS = BREATH_CYCLE_SECONDS;
+const MUSIC_GRID_STEPS = 64;
 const HEART_BPM = 48;
 const CRYSTAL_BOWLS = [
   { size: "very large", ratio: .51, position: 0, pan: -.42, duration: 10.5, gain: .52, source: "musicKick" },
@@ -478,7 +478,7 @@ function updateVisualState(elapsed) {
   const clock = state.running ? audioElapsed(elapsed) : elapsed;
   const targetBreath = state.running ? boxBreath(clock, BREATH_SIDE_SECONDS) : 0;
   const targetBeat = state.running ? beatEnvelope(clock, state.beatBpm) : 0;
-  const targetMusic = state.running ? musicEnvelope(clock, state.beatBpm) : 0;
+  const targetMusic = state.running ? musicEnvelope(clock) : 0;
   const targetMusicAudio = state.running ? musicAudioEnvelope() : 0;
   const targetActive = state.running ? 1 : .32;
   state.visual.breath = state.running ? targetBreath : state.visual.breath + (targetBreath - state.visual.breath) * .055 * VISUAL_RESPONSE_SPEED;
@@ -647,8 +647,6 @@ function breathMotionEase(value) {
 }
 
 function beatEnvelope(elapsed, bpm) {
-  // Heart BPM is independent from the 4/4/4/4 breath cycle. The exposed BPM
-  // values are chosen because each produces an integer beat count per 16 sec.
   const secondsPerBeat = heartBeatInterval(bpm);
   const phase = positiveModulo(elapsed, secondsPerBeat) / secondsPerBeat;
   const lub = Math.exp(-Math.pow((phase - .045) / .038, 2));
@@ -660,14 +658,14 @@ function heartBeatInterval(bpm) {
   return 60 / Math.max(1, bpm);
 }
 
-function musicGridInterval(bpm = state.beatBpm) {
-  return heartBeatInterval(bpm) / MUSIC_GRID_DIVISIONS;
+function musicGridInterval() {
+  return BREATH_CYCLE_SECONDS / MUSIC_GRID_STEPS;
 }
 
-function musicEnvelope(elapsed, bpm) {
+function musicEnvelope(elapsed) {
   const phrase = positiveModulo(elapsed, MUSIC_PHRASE_SECONDS);
   const phraseSwell = .5 + .5 * Math.sin(TWO_PI * phrase / MUSIC_PHRASE_SECONDS - Math.PI / 2);
-  const stepInterval = musicGridInterval(bpm);
+  const stepInterval = musicGridInterval();
   const step = positiveModulo(phrase, stepInterval) / stepInterval;
   const pulse = Math.exp(-step * 2.6);
   return clamp(.2 + phraseSwell * .36 + pulse * .14, 0, 1);

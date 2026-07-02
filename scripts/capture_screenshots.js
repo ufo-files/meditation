@@ -85,9 +85,8 @@ async function main() {
     const page = await browser.newPage({ viewport: VIEWPORT, deviceScaleFactor: 1 });
     await page.goto(baseUrl, { waitUntil: "networkidle" });
     await page.waitForSelector("#start", { timeout: 30000 });
-    await page.click("#start");
-    await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("Active"));
-    await page.waitForTimeout(1800);
+    await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("Idle"));
+    await page.waitForTimeout(1000);
     await capture(page, "meditation-sphere");
     await browser.close();
   } finally {
