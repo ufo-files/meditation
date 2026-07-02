@@ -27,7 +27,7 @@ const eqBandsEl = document.getElementById("eq-bands");
 const layerToggleInputs = Array.from(document.querySelectorAll(".layer-toggle"));
 
 const TWO_PI = Math.PI * 2;
-const STAR_COUNT_TARGET = 32000;
+const STAR_COUNT_TARGET = 12000;
 const UNIVERSE_INNER_RADIUS = .16;
 const UNIVERSE_OUTER_RADIUS = 1.94;
 const OVERLAY_POINT_COUNT = 8000;

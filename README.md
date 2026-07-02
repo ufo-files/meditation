@@ -11,7 +11,7 @@ Live app: https://ufo-files.github.io/meditation/
 
 The app renders a volumetric field of mapped stars with Three.js and overlays meditation-oriented audio layers that can be toggled, tuned, mixed, and exported as JSON settings.
 
-- Real universe layer: 32,000 Gaia DR3 stars mapped into a volumetric star field.
+- Real universe layer: 12,000 Gaia DR3 stars mapped into a volumetric star field.
 - Box breath core: synthetic breath layer following a 4-4-4-4 box-breathing cycle.
 - Heart-rate field: synthetic heartbeat pulse with BPM values chosen to divide cleanly into the breath cycle.
 - Low drone: 100 Hz tone modulated at 7.83 Hz.
@@ -21,7 +21,7 @@ The app renders a volumetric field of mapped stars with Three.js and overlays me
 
 ## Data
 
-The universe layer is generated from Gaia DR3. The app ships a curated 32,000-star subset selected from bright sources with:
+The universe layer is generated from Gaia DR3. The app ships a curated 12,000-star subset selected from bright sources with:
 
 - positive parallax
 - `parallax_over_error > 10`
@@ -39,7 +39,7 @@ All visual layers use Gaia-derived positions or directions, but only the univers
 
 Current point counts:
 
-- Universe: 32,000
+- Universe: 12,000
 - Breath: 6,000
 - Heartbeat: 8,000
 - Drone core: 6,000

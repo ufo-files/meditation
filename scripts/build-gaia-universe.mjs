@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
-const DEFAULT_COUNT = 32000;
+const DEFAULT_COUNT = 12000;
 const OUTPUT_JSON = resolve(repoRoot, "data/universe-stars.json");
 const OUTPUT_JS = resolve(repoRoot, "data/universe-stars.js");
 const SOURCE_URL = "https://gea.esac.esa.int/archive/";
