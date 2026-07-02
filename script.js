@@ -1353,20 +1353,21 @@ function scheduleMusicStep(at, step, interval) {
   const session = state.musicSession || createMusicSession(state.beatBpm);
   const cycleSteps = Math.max(16, Math.round(BREATH_CYCLE_SECONDS / interval));
   const heartSteps = Math.max(1, Math.round(heartBeatInterval(state.beatBpm) / interval));
-  const cycleStep = step % cycleSteps;
   const bowlSpace = sourceTempoDensity(state.sourceTempos.musicKick);
   const cycleIndex = Math.floor(step / cycleSteps);
+  const cycleStartStep = cycleIndex * cycleSteps;
 
   CRYSTAL_BOWLS.forEach((bowl, index) => {
-    const targetStep = nearestGridStep(bowl.position / 64 * cycleSteps, heartSteps);
-    if (cycleStep !== targetStep || index % bowlSpace !== 0) return;
+    const targetStep = nearestGridStepAtOrAfter(cycleStartStep + bowl.position / 64 * cycleSteps, heartSteps, cycleStartStep);
+    if (step !== targetStep || index % bowlSpace !== 0) return;
     const source = bowl.source || "musicKick";
     const frequency = state.sourceFrequencies[source] * bowl.ratio;
     const pan = bowl.pan + session.panOffset * (index % 2 === 0 ? 1 : -1);
     scheduleCrystalBowl(at, frequency, bowl.duration, bowl.gain, pan, session.detune, source);
   });
 
-  if (cycleStep === nearestGridStep(56 / 64 * cycleSteps, heartSteps) && cycleIndex % 3 === 1) {
+  const accentStep = nearestGridStepAtOrAfter(cycleStartStep + 56 / 64 * cycleSteps, heartSteps, cycleStartStep);
+  if (step === accentStep && cycleIndex % 3 === 1) {
     const accent = TEMPLE_BOWL_ACCENTS[(cycleIndex + session.accentOffset) % TEMPLE_BOWL_ACCENTS.length];
     const source = accent.source || "musicKick";
     const frequency = state.sourceFrequencies[source] * accent.ratio;
@@ -1376,6 +1377,11 @@ function scheduleMusicStep(at, step, interval) {
 
 function nearestGridStep(target, grid) {
   return Math.max(0, Math.round(target / grid) * grid);
+}
+
+function nearestGridStepAtOrAfter(target, grid, minimum) {
+  const step = nearestGridStep(target, grid);
+  return step < minimum ? step + grid : step;
 }
 
 function scheduleCrystalBowl(at, frequency, duration, velocity, pan, detune, volumeKey = "musicKick") {
