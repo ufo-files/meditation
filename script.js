@@ -367,7 +367,7 @@ function drawThree(elapsed) {
   view.universe.points.scale.setScalar(state.depth);
   view.universe.material.opacity = state.running ? .92 : .72;
   updateThreeMusicLayer(view.music, MUSIC_VOLUME_SCALE, music, elapsed, active);
-  updateThreeProceduralLayer(view.breath, BREATH_VOLUME_SCALE * (.58 + breath * .76), state.running ? .024 : 0, .44 + breath * .32);
+  updateThreeProceduralLayer(view.breath, BREATH_VOLUME_SCALE * (.58 + breath * .76), state.running ? .024 : 0, .52 + breath * .34);
   updateThreeHeartLayer(view.beat, BEAT_VOLUME_SCALE, beat, state.running);
   updateThreeDroneLayer(view.drone, DRONE_VOLUME_SCALE, state.running ? audioElapsed(elapsed) : elapsed, state.running ? .007 : 0);
   view.renderer.render(view.scene, view.camera);
@@ -414,13 +414,13 @@ function updateThreeMusicLayer(layer, scale, energy, elapsed, active) {
 function updateThreeHeartLayer(layer, scale, beat, animateSurface) {
   const positions = layer.geometry.attributes.position.array;
   const now = performance.now() * .00012;
-  const pulseScale = scale * (1 + beat * .11);
+  const pulseScale = scale * (1 + beat * .28);
   for (let index = 0; index < layer.phases.length; index += 1) {
     const offset = index * 3;
     const nx = layer.directions[offset];
     const ny = layer.directions[offset + 1];
     const nz = layer.directions[offset + 2];
-    const surfaceNoise = animateSurface ? Math.sin(layer.phases[index] * TWO_PI + now) * .006 : 0;
+    const surfaceNoise = animateSurface ? Math.sin(layer.phases[index] * TWO_PI + now) * .014 : 0;
     positions[offset] = layer.basePositions[offset] * pulseScale + nx * surfaceNoise;
     positions[offset + 1] = layer.basePositions[offset + 1] * pulseScale + ny * surfaceNoise;
     positions[offset + 2] = layer.basePositions[offset + 2] * pulseScale + nz * surfaceNoise;
@@ -466,8 +466,8 @@ function drawCanvas(elapsed) {
   ctx.clearRect(0, 0, width, height);
   if (state.layers.universe) drawCanvasStars({ width, height, scale, rotationX, rotationY });
   if (state.layers.music) drawCanvasMusicPoints(musicPoints, MUSIC_VOLUME_SCALE, 1.06, rotationX * .82, rotationY * 1.12, .34 + music * .22, music, elapsed);
-  if (state.layers.breath) drawCanvasSpherePoints(breathPoints, BREATH_VOLUME_SCALE * (.58 + breath * .76), .9, rotationX, rotationY, .26 + breath * .24, state.running ? .025 : 0);
-  if (state.layers.beat) drawCanvasSpherePoints(beatPoints, BEAT_VOLUME_SCALE * (1 + beat * .11), .74, rotationX * .9, rotationY * 1.08, .3 + beat * .42, state.running ? .006 : 0);
+  if (state.layers.breath) drawCanvasSpherePoints(breathPoints, BREATH_VOLUME_SCALE * (.58 + breath * .76), .9, rotationX, rotationY, .34 + breath * .26, state.running ? .025 : 0);
+  if (state.layers.beat) drawCanvasSpherePoints(beatPoints, BEAT_VOLUME_SCALE * (1 + beat * .28), .74, rotationX * .9, rotationY * 1.08, .3 + beat * .42, state.running ? .014 : 0);
   if (state.layers.drone) drawCanvasDronePoints(dronePoints, DRONE_VOLUME_SCALE, .9, rotationX * 1.1, rotationY * .82, .16, state.running ? audioElapsed(elapsed) : elapsed);
 }
 
