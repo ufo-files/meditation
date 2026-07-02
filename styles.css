@@ -407,12 +407,6 @@ select {
   padding: 8px 0;
 }
 
-.eq-source-list[data-target="whistle"] {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  row-gap: 8px;
-  padding: 8px 0 10px;
-}
-
 .eq-source-list label {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) 34px;
@@ -429,19 +423,6 @@ select {
 
 .eq-source-list label + label {
   border-left: 1px solid var(--line);
-}
-
-.eq-source-list[data-target="whistle"] label {
-  padding: 0 12px;
-}
-
-.eq-source-list[data-target="whistle"] label:nth-child(odd) {
-  border-left: 0;
-}
-
-.eq-source-list[data-target="whistle"] label:nth-child(n+3) {
-  padding-top: 8px;
-  border-top: 1px solid var(--line);
 }
 
 .eq-source-list label > span {
@@ -580,7 +561,7 @@ select {
   bottom: 12px;
   z-index: 4;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .readout > div {
@@ -681,7 +662,7 @@ select {
 .site-motto {
   position: fixed;
   left: 12px;
-  bottom: 96px;
+  bottom: 80px;
   z-index: 6;
   color: var(--muted);
   font: 12px/1 var(--font);
@@ -764,7 +745,7 @@ select {
 
   .site-motto {
     left: 8px;
-    bottom: 209px;
+    bottom: 177px;
     font-size: 11px;
   }
 

@@ -9,10 +9,10 @@ Live app: https://ufo-files.github.io/meditation/
 
 ## Data
 
-The universe layer is generated from the HYG Database v3.8 star catalog. The app ships a deterministic 6,000-star subset selected from bright, named, nearby, and depth-sampled stars. Each point keeps catalog-derived `x`, `y`, `z`, visual magnitude, color index, distance, name, and constellation fields.
+The universe layer is generated from Gaia DR3. The app ships a curated 32,000-star subset selected from bright sources with positive parallax, `parallax_over_error > 10`, and G-band photometry. Each point keeps Gaia-derived `source_id`, Cartesian `x`, `y`, `z`, visual magnitude, BP/RP color index, and distance in parsecs. The renderer preserves sky direction and log-compresses distance into a volumetric star field, so stars occupy the interior rather than only a surface shell.
 
-Source: https://github.com/astronexus/HYG-Database/blob/main/hyg/v3/hyg_v38.csv.gz  
-License: CC BY-SA 4.0
+Source: https://gea.esac.esa.int/archive/
+Use terms: https://www.cosmos.esa.int/web/gaia-users/archive/conditions-of-use
 
 The breath, beat, drone, and music layers are meditation overlays. They are not astronomical measurements. Box breathing stays fixed at a 16-second cycle; the heart-rate and music pulses use BPM options that divide evenly into that cycle.
 
@@ -26,5 +26,6 @@ This is a static Pages app.
 
 ```sh
 python3 -m http.server 4177
+npm run build:universe
 npm run screenshots
 ```

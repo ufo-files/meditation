@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "build:universe": "node scripts/build-gaia-universe.mjs",
     "screenshots": "node scripts/capture_screenshots.js"
   },
   "devDependencies": {
