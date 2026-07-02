@@ -66,7 +66,7 @@ const AUDIO_WORKLET_VERSION = "2026-07-01-breath-air-cleaner";
 const DRONE_TONE_FREQUENCY = 100;
 const DRONE_BASE_GAIN = .026;
 const HEART_BASE_GAIN = .82;
-const BREATH_BASE_GAIN = 1.9;
+const BREATH_BASE_GAIN = 2.55;
 const MUSIC_BASE_GAIN = 1.74;
 const EQ_BANDS = [
   { id: "40", label: "40", frequency: 40, q: .82 },
