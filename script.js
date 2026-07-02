@@ -36,8 +36,8 @@ const BEAT_POINT_COUNT = OVERLAY_POINT_COUNT;
 const DRONE_POINT_COUNT = 6000;
 const MUSIC_POINT_COUNT = OVERLAY_POINT_COUNT;
 const BREATH_VOLUME_SCALE = .42;
-const BEAT_VOLUME_SCALE = .58;
-const DRONE_VOLUME_SCALE = .1;
+const BEAT_VOLUME_SCALE = .52;
+const DRONE_VOLUME_SCALE = .075;
 const MUSIC_VOLUME_SCALE = .82;
 const VISUAL_ROTATION_SPEED = 1.85;
 const VISUAL_RESPONSE_SPEED = 1.45;
@@ -142,7 +142,7 @@ const state = {
   },
   layerVolumes: {
     breath: .5,
-    beat: .75,
+    beat: .25,
     drone: 1.5,
     music: 1,
   },
@@ -230,7 +230,7 @@ function createThreeRenderer(THREE) {
   const texture = createThreePointTexture(THREE);
   const universe = createThreeStarLayer(THREE, texture);
   const breath = createThreeProceduralLayer(THREE, texture, breathPoints, .5, .023, .62);
-  const beat = createThreeProceduralLayer(THREE, texture, beatPoints, BEAT_VOLUME_SCALE, .015, .42);
+  const beat = createThreeProceduralLayer(THREE, texture, beatPoints, BEAT_VOLUME_SCALE, .015, .48);
   const drone = createThreeProceduralLayer(THREE, texture, dronePoints, DRONE_VOLUME_SCALE, .014, .2);
   const music = createThreeProceduralLayer(THREE, texture, musicPoints, 1.42, .018, .18);
 
@@ -425,7 +425,7 @@ function updateThreeHeartLayer(layer, scale, beat, animateSurface) {
     positions[offset + 1] = layer.basePositions[offset + 1] * pulseScale + ny * surfaceNoise;
     positions[offset + 2] = layer.basePositions[offset + 2] * pulseScale + nz * surfaceNoise;
   }
-  layer.material.opacity = .34 + beat * .42;
+  layer.material.opacity = .4 + beat * .44;
   layer.material.size = .015 + beat * .004;
   layer.geometry.attributes.position.needsUpdate = true;
 }
@@ -467,7 +467,7 @@ function drawCanvas(elapsed) {
   if (state.layers.universe) drawCanvasStars({ width, height, scale, rotationX, rotationY });
   if (state.layers.music) drawCanvasMusicPoints(musicPoints, MUSIC_VOLUME_SCALE, 1.06, rotationX * .82, rotationY * 1.12, .34 + music * .22, music, elapsed);
   if (state.layers.breath) drawCanvasSpherePoints(breathPoints, BREATH_VOLUME_SCALE * (.58 + breath * .76), .9, rotationX, rotationY, .26 + breath * .24, state.running ? .025 : 0);
-  if (state.layers.beat) drawCanvasSpherePoints(beatPoints, BEAT_VOLUME_SCALE * (1 + beat * .11), .74, rotationX * .9, rotationY * 1.08, .24 + beat * .4, state.running ? .006 : 0);
+  if (state.layers.beat) drawCanvasSpherePoints(beatPoints, BEAT_VOLUME_SCALE * (1 + beat * .11), .74, rotationX * .9, rotationY * 1.08, .3 + beat * .42, state.running ? .006 : 0);
   if (state.layers.drone) drawCanvasDronePoints(dronePoints, DRONE_VOLUME_SCALE, .9, rotationX * 1.1, rotationY * .82, .16, state.running ? audioElapsed(elapsed) : elapsed);
 }
 
