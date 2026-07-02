@@ -40,6 +40,17 @@ const BREATH_CYCLE_SECONDS = 16;
 const MUSIC_PHRASE_SECONDS = 16;
 const MUSIC_GRID_DIVISIONS = 4;
 const HEART_BPM_OPTIONS = [45, 60, 75, 90];
+const CRYSTAL_BOWLS = [
+  { size: "very large", ratio: .51, position: 0, pan: -.42, duration: 10.5, gain: .52, source: "musicKick" },
+  { size: "large", ratio: .68, position: 18, pan: .28, duration: 8.2, gain: .34, source: "musicKick" },
+  { size: "very large", ratio: .57, position: 32, pan: .4, duration: 10.2, gain: .46, source: "musicKick" },
+  { size: "medium", ratio: .96, position: 48, pan: -.18, duration: 6.6, gain: .22, source: "musicKick" },
+];
+const TEMPLE_BOWL_ACCENTS = [
+  { size: "large", ratio: .77, pan: -.34, duration: 6.8, gain: .18, source: "musicKick" },
+  { size: "small", ratio: .63, pan: .44, duration: 4.2, gain: .08, source: "musicBackbeat" },
+  { size: "small", ratio: .91, pan: -.48, duration: 3.8, gain: .07, source: "musicBackbeat" },
+];
 const DRONE_TONE_FREQUENCY = 100;
 const DRONE_BASE_GAIN = .026;
 const HEART_BASE_GAIN = .82;
@@ -699,7 +710,7 @@ function syncLayerLabels() {
   breathLabel.textContent = `${formatHz(state.sourceFrequencies.breath)} / 4-4-4-4`;
   beatLabel.textContent = `${state.beatBpm} bpm / ${formatHz(state.sourceFrequencies.beat)}`;
   droneLabel.textContent = `${formatHz(DRONE_TONE_FREQUENCY)} / ${formatHz(state.sourceFrequencies.drone)} mod`;
-  musicLabel.textContent = `Bowl ${formatHz(state.sourceFrequencies.musicKick)} / Space ${formatHz(state.sourceFrequencies.musicBackbeat)}`;
+  musicLabel.textContent = `7 bowls / ${formatHz(state.sourceFrequencies.musicKick)} center`;
 }
 
 function currentEqSettings() {
@@ -1235,17 +1246,12 @@ function sine(frequency, t) {
 
 function createMusicSession(bpm, seed = createSessionSeed()) {
   const random = mulberry32(seed + Math.round(bpm * 1000));
-  const bowlPaths = [
-    [1, 9 / 8, 5 / 4, 3 / 2],
-    [1, 5 / 4, 3 / 2, 9 / 8],
-    [1, 9 / 8, 4 / 3, 3 / 2],
-  ];
   return {
     seed,
     filterHz: 2600 + random() * 900,
-    bowlPath: bowlPaths[Math.floor(random() * bowlPaths.length)],
-    panOffset: random() * .4 - .2,
-    detune: .9 + random() * 1.2,
+    panOffset: random() * .22 - .11,
+    detune: .18 + random() * .32,
+    accentOffset: Math.floor(random() * TEMPLE_BOWL_ACCENTS.length),
   };
 }
 
@@ -1274,26 +1280,26 @@ function scheduleMusic(now) {
 
 function scheduleMusicStep(at, step, interval) {
   const session = state.musicSession || createMusicSession(state.beatBpm);
-  const sideSteps = Math.max(4, Math.round(BREATH_SIDE_SECONDS / interval));
-  const cycleSteps = sideSteps * 4;
-  const sideStep = step % sideSteps;
+  const cycleSteps = Math.max(16, Math.round(BREATH_CYCLE_SECONDS / interval));
   const heartSteps = Math.max(1, Math.round(heartBeatInterval(state.beatBpm) / interval));
-  const cycleSide = Math.floor((step % cycleSteps) / sideSteps);
+  const cycleStep = step % cycleSteps;
   const bowlSpace = sourceTempoDensity(state.sourceTempos.musicKick);
-  const spaceSpace = sourceTempoDensity(state.sourceTempos.musicBackbeat);
-  const bowlStep = nearestGridStep(0, heartSteps);
-  const haloStep = nearestGridStep(sideSteps * .5, heartSteps);
+  const cycleIndex = Math.floor(step / cycleSteps);
 
-  if (sideStep === bowlStep && cycleSide % bowlSpace === 0) {
-    const ratio = session.bowlPath[cycleSide % session.bowlPath.length];
-    const frequency = state.sourceFrequencies.musicKick * ratio;
-    const pan = [-.42, .34, -.18, .48][cycleSide] + session.panOffset;
-    scheduleCrystalBowl(at, frequency, BREATH_SIDE_SECONDS * 1.25, .48, pan, session.detune);
-  }
-  if (sideStep === haloStep && cycleSide % spaceSpace === 0) {
-    const frequency = state.sourceFrequencies.musicBackbeat * (cycleSide % 2 ? 1.125 : 1);
-    const pan = [.5, -.46, .24, -.3][cycleSide] - session.panOffset;
-    scheduleCrystalHalo(at + interval * .1, frequency, BREATH_SIDE_SECONDS * .9, .22, pan);
+  CRYSTAL_BOWLS.forEach((bowl, index) => {
+    const targetStep = nearestGridStep(bowl.position / 64 * cycleSteps, heartSteps);
+    if (cycleStep !== targetStep || index % bowlSpace !== 0) return;
+    const source = bowl.source || "musicKick";
+    const frequency = state.sourceFrequencies[source] * bowl.ratio;
+    const pan = bowl.pan + session.panOffset * (index % 2 === 0 ? 1 : -1);
+    scheduleCrystalBowl(at, frequency, bowl.duration, bowl.gain, pan, session.detune, source);
+  });
+
+  if (cycleStep === nearestGridStep(56 / 64 * cycleSteps, heartSteps) && cycleIndex % 3 === 1) {
+    const accent = TEMPLE_BOWL_ACCENTS[(cycleIndex + session.accentOffset) % TEMPLE_BOWL_ACCENTS.length];
+    const source = accent.source || "musicKick";
+    const frequency = state.sourceFrequencies[source] * accent.ratio;
+    scheduleCrystalBowl(at, frequency, accent.duration, accent.gain, accent.pan - session.panOffset, session.detune, source);
   }
 }
 
@@ -1301,8 +1307,8 @@ function nearestGridStep(target, grid) {
   return Math.max(0, Math.round(target / grid) * grid);
 }
 
-function scheduleCrystalBowl(at, frequency, duration, velocity, pan, detune) {
-  const bowlVolume = state.sourceVolumes.musicKick;
+function scheduleCrystalBowl(at, frequency, duration, velocity, pan, detune, volumeKey = "musicKick") {
+  const bowlVolume = state.sourceVolumes[volumeKey] ?? 1;
   const left = state.audio.createOscillator();
   const right = state.audio.createOscillator();
   const gain = state.audio.createGain();
@@ -1315,13 +1321,13 @@ function scheduleCrystalBowl(at, frequency, duration, velocity, pan, detune) {
   left.detune.value = -detune;
   right.detune.value = detune;
   filter.type = "lowpass";
-  filter.frequency.setValueAtTime(Math.min(5200, frequency * 5.5), at);
-  filter.Q.value = .04;
+  filter.frequency.setValueAtTime(Math.min(2600, frequency * 2.8), at);
+  filter.Q.value = .018;
   panner.pan.setValueAtTime(clamp(pan, -.72, .72), at);
   panner.pan.linearRampToValueAtTime(clamp(-pan * .35, -.5, .5), at + duration);
   gain.gain.setValueAtTime(.0001, at);
-  gain.gain.linearRampToValueAtTime(.018 * velocity * bowlVolume, at + .9);
-  gain.gain.setValueAtTime(.014 * velocity * bowlVolume, at + duration * .42);
+  gain.gain.linearRampToValueAtTime(.012 * velocity * bowlVolume, at + 1.8);
+  gain.gain.setValueAtTime(.009 * velocity * bowlVolume, at + duration * .5);
   gain.gain.exponentialRampToValueAtTime(.0001, at + duration);
   left.connect(filter);
   right.connect(filter);
@@ -1330,28 +1336,6 @@ function scheduleCrystalBowl(at, frequency, duration, velocity, pan, detune) {
   right.start(at);
   left.stop(at + duration + .04);
   right.stop(at + duration + .04);
-}
-
-function scheduleCrystalHalo(at, frequency, duration, velocity, pan) {
-  const spaceVolume = state.sourceVolumes.musicBackbeat;
-  const oscillator = state.audio.createOscillator();
-  const gain = state.audio.createGain();
-  const filter = state.audio.createBiquadFilter();
-  const panner = state.audio.createStereoPanner();
-  oscillator.type = "sine";
-  oscillator.frequency.setValueAtTime(frequency, at);
-  filter.type = "lowpass";
-  filter.frequency.setValueAtTime(Math.min(6400, frequency * 4.2), at);
-  filter.Q.value = .035;
-  panner.pan.setValueAtTime(clamp(pan, -.78, .78), at);
-  panner.pan.linearRampToValueAtTime(clamp(pan * -.25, -.4, .4), at + duration);
-  gain.gain.setValueAtTime(.0001, at);
-  gain.gain.linearRampToValueAtTime(.007 * velocity * spaceVolume, at + .7);
-  gain.gain.exponentialRampToValueAtTime(.0001, at + duration);
-  oscillator.connect(filter);
-  filter.connect(gain).connect(panner).connect(state.audioNodes.musicFilter);
-  oscillator.start(at);
-  oscillator.stop(at + duration + .04);
 }
 
 function sourceTempoDensity(multiplier) {
