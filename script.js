@@ -1,6 +1,7 @@
 const canvas = document.getElementById("universe");
 const ctx = canvas.getContext("2d");
 const startButton = document.getElementById("start");
+const animationToggleButton = document.getElementById("animation-toggle");
 const appSwitcher = document.getElementById("app-switcher");
 const statusEl = document.getElementById("status");
 const volumeInput = document.getElementById("volume");
@@ -44,7 +45,7 @@ const MUSIC_VOLUME_SCALE = .675;
 const VISUAL_ROTATION_SPEED = 1.15;
 const VISUAL_RESPONSE_SPEED = 1.45;
 const MUSIC_VISUAL_SIGNAL_GAIN = 4;
-const TRACE_RGB = "17, 17, 17";
+const TRACE_RGB = "232, 229, 222";
 const BREATH_SIDE_SECONDS = 4;
 const BREATH_CYCLE_SECONDS = BREATH_SIDE_SECONDS * 4;
 const MUSIC_PHRASE_SECONDS = BREATH_CYCLE_SECONDS;
@@ -131,6 +132,8 @@ const musicPoints = createUniverseProjectionPoints(MUSIC_POINT_COUNT, 23, Math.f
 
 const state = {
   running: false,
+  animationPaused: false,
+  needsVisualFrame: true,
   depth: 1.32,
   volume: .4,
   beatBpm: HEART_BPM,
@@ -238,7 +241,7 @@ function createThreeRenderer(THREE) {
   const music = createThreeProceduralLayer(THREE, texture, musicPoints, MUSIC_VOLUME_SCALE, .018, .18);
 
   camera.position.z = 5.2;
-  renderer.setClearColor(0xf6f5ef, 0);
+  renderer.setClearColor(0x050505, 0);
   renderer.setPixelRatio(Math.max(1, Math.min(2, window.devicePixelRatio || 1)));
   if ("outputColorSpace" in renderer && THREE.SRGBColorSpace) renderer.outputColorSpace = THREE.SRGBColorSpace;
   root.add(universe.points, music.points, breath.points, beat.points, drone.points);
@@ -300,7 +303,7 @@ function createThreeProceduralLayer(THREE, texture, sourcePoints, radius, size, 
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
   const material = new THREE.PointsMaterial({
-    color: 0x111111,
+    color: 0xe8e5de,
     size,
     map: texture,
     transparent: true,
@@ -318,9 +321,9 @@ function createThreePointTexture(THREE) {
   textureCanvas.height = 64;
   const textureCtx = textureCanvas.getContext("2d");
   const gradient = textureCtx.createRadialGradient(32, 32, 0, 32, 32, 30);
-  gradient.addColorStop(0, "rgba(17, 17, 17, .94)");
-  gradient.addColorStop(.58, "rgba(17, 17, 17, .72)");
-  gradient.addColorStop(1, "rgba(17, 17, 17, 0)");
+  gradient.addColorStop(0, "rgba(232, 229, 222, .94)");
+  gradient.addColorStop(.58, "rgba(232, 229, 222, .72)");
+  gradient.addColorStop(1, "rgba(232, 229, 222, 0)");
   textureCtx.fillStyle = gradient;
   textureCtx.beginPath();
   textureCtx.arc(32, 32, 30, 0, TWO_PI);
@@ -334,6 +337,12 @@ function animateCanvas() {
   const now = performance.now() / 1000;
   const elapsed = now - state.startedAt;
   resizeCanvas();
+
+  if (state.animationPaused && !state.needsVisualFrame) {
+    window.requestAnimationFrame(animateCanvas);
+    return;
+  }
+  state.needsVisualFrame = false;
 
   if (state.rendererMode === "three" && state.three) {
     drawThree(elapsed);
@@ -705,6 +714,9 @@ function renderEqualizer() {
 function syncControls() {
   startButton.textContent = state.running ? "Stop" : "Start";
   startButton.classList.toggle("active", state.running);
+  animationToggleButton.textContent = state.animationPaused ? "Resume animation" : "Pause animation";
+  animationToggleButton.classList.toggle("active", state.animationPaused);
+  animationToggleButton.setAttribute("aria-pressed", String(state.animationPaused));
   eqToggleButton.classList.toggle("active", state.eqOpen);
   eqToggleButton.setAttribute("aria-expanded", String(state.eqOpen));
   equalizerPanel.hidden = !state.eqOpen;
@@ -730,6 +742,7 @@ function syncControls() {
     input.closest(".eq-band")?.style.setProperty("--eq-pos", String(eqGainPosition(gain)));
     input.nextElementSibling.value = formatDb(gain);
   });
+  state.needsVisualFrame = true;
 }
 
 function syncLayerLabels() {
@@ -1531,10 +1544,10 @@ function seededSpherePoint(index) {
 }
 
 function starColor(colorIndex) {
-  if (!Number.isFinite(colorIndex)) return { r: .08, g: .08, b: .08 };
+  if (!Number.isFinite(colorIndex)) return { r: .74, g: .72, b: .66 };
   const t = clamp((colorIndex + .4) / 2.4, 0, 1);
-  const warm = { r: .13, g: .115, b: .085 };
-  const cool = { r: .075, g: .086, b: .13 };
+  const warm = { r: .92, g: .84, b: .62 };
+  const cool = { r: .62, g: .7, b: .92 };
   return {
     r: lerp(cool.r, warm.r, t),
     g: lerp(cool.g, warm.g, t),
@@ -1589,6 +1602,11 @@ function positiveModulo(value, divisor) {
 }
 
 startButton.addEventListener("click", toggleSession);
+animationToggleButton.addEventListener("click", () => {
+  state.animationPaused = !state.animationPaused;
+  state.needsVisualFrame = true;
+  syncControls();
+});
 volumeInput.addEventListener("input", () => {
   const target = state.eqTarget === "master" ? null : state.eqTarget;
   if (target) {
@@ -1676,4 +1694,7 @@ eqSourceList.addEventListener("change", (event) => {
 appSwitcher.addEventListener("change", () => {
   if (appSwitcher.value) window.location.href = appSwitcher.value;
 });
-window.addEventListener("resize", resizeCanvas);
+window.addEventListener("resize", () => {
+  state.needsVisualFrame = true;
+  resizeCanvas();
+});

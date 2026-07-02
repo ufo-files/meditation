@@ -1,10 +1,13 @@
 :root {
-  --bg: #f6f5ef;
-  --panel: rgba(246, 245, 239, .96);
-  --ink: #111;
-  --muted: #555;
-  --line: #111;
-  --chip: #ecebe4;
+  --bg: #050505;
+  --panel: rgba(8, 8, 8, .94);
+  --field: #0b0b0b;
+  --ink: #e8e5de;
+  --muted: #a6a29a;
+  --line: #3b3934;
+  --chip: #171613;
+  --toggle-bg: rgba(246, 243, 235, .75);
+  --toggle-knob: #050505;
   --font: "SF Mono", "IBM Plex Mono", "Roboto Mono", ui-monospace, monospace;
 }
 
@@ -33,7 +36,7 @@ main {
   width: 100vw;
   height: 100vh;
   background:
-    radial-gradient(circle at 50% 52%, rgba(17, 17, 17, .052), transparent 32%),
+    radial-gradient(circle at 50% 52%, rgba(232, 229, 222, .07), transparent 34%),
     var(--bg);
 }
 
@@ -62,6 +65,8 @@ main {
 .brand {
   max-width: 640px;
   padding: 10px 12px;
+  border-color: transparent;
+  background: transparent;
 }
 
 h1 {
@@ -139,7 +144,7 @@ select {
   height: 34px;
   border: 1px solid var(--line);
   border-radius: 0;
-  background: #fff;
+  background: var(--field);
   color: var(--ink);
   font: inherit;
 }
@@ -185,13 +190,13 @@ input[type="range"] {
 input[type="range"]::-webkit-slider-runnable-track {
   height: 4px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--field);
 }
 
 input[type="range"]::-moz-range-track {
   height: 4px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--field);
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -226,7 +231,7 @@ select {
   gap: 8px;
   align-items: center;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--field);
   padding: 0 10px;
   color: var(--muted);
   font-size: 12px;
@@ -248,7 +253,7 @@ select {
   width: 36px;
   height: 16px;
   border: 1px solid var(--line);
-  background: var(--chip);
+  background: var(--toggle-bg);
   font-style: normal;
 }
 
@@ -256,7 +261,7 @@ select {
 .layer-switch i::before {
   content: "";
   position: absolute;
-  background: var(--ink);
+  background: var(--toggle-knob);
   transition: transform .12s ease;
 }
 
@@ -518,7 +523,7 @@ select {
   left: 50%;
   width: 4px;
   border: 1px solid var(--line);
-  background: #fff;
+  background: var(--field);
   transform: translateX(-50%);
 }
 
@@ -562,6 +567,7 @@ select {
   z-index: 4;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
+  background: rgba(5, 5, 5, .5);
 }
 
 .readout > div {
@@ -644,7 +650,7 @@ select {
   position: absolute;
   inset: 0;
   border: 1px solid var(--line);
-  background: var(--chip);
+  background: var(--toggle-bg);
   font-style: normal;
 }
 
