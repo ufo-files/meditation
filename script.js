@@ -1040,6 +1040,10 @@ async function startAudio() {
     const musicFilter = audio.createBiquadFilter();
     const musicLimiter = audio.createDynamicsCompressor();
     const musicOutputFilter = audio.createBiquadFilter();
+    const musicSpaceDelay = audio.createDelay(1.2);
+    const musicSpaceFeedback = audio.createGain();
+    const musicSpaceFilter = audio.createBiquadFilter();
+    const musicSpaceGain = audio.createGain();
     const musicAnalyserGain = audio.createGain();
     const musicAnalyser = audio.createAnalyser();
     let breathSource = null;
@@ -1067,6 +1071,12 @@ async function startAudio() {
     musicOutputFilter.type = "lowpass";
     musicOutputFilter.frequency.value = 4200;
     musicOutputFilter.Q.value = .18;
+    musicSpaceDelay.delayTime.value = .34;
+    musicSpaceFeedback.gain.value = .24;
+    musicSpaceFilter.type = "lowpass";
+    musicSpaceFilter.frequency.value = 1800;
+    musicSpaceFilter.Q.value = .15;
+    musicSpaceGain.gain.value = .34;
     musicAnalyserGain.gain.value = MUSIC_VISUAL_SIGNAL_GAIN;
     musicAnalyser.fftSize = 1024;
     musicAnalyser.smoothingTimeConstant = .42;
@@ -1085,6 +1095,8 @@ async function startAudio() {
     eqNodes.beat.trimGain.connect(master);
     musicFilter.connect(musicGain);
     musicGain.connect(musicLimiter).connect(musicOutputFilter);
+    musicSpaceDelay.connect(musicSpaceFeedback).connect(musicSpaceDelay);
+    musicSpaceDelay.connect(musicSpaceFilter).connect(musicSpaceGain).connect(musicFilter);
     connectEqualizerChain(musicOutputFilter, eqNodes.music.filters, eqNodes.music.trimGain);
     eqNodes.music.trimGain.connect(master);
     eqNodes.music.trimGain.connect(musicAnalyserGain).connect(musicAnalyser);
@@ -1126,6 +1138,7 @@ async function startAudio() {
       musicLimiter,
       musicFilter,
       musicOutputFilter,
+      musicSpaceDelay,
       musicAnalyserGain,
       musicAnalyser,
       musicWaveformData: new Float32Array(musicAnalyser.fftSize),
@@ -1357,8 +1370,11 @@ function scheduleCrystalBowl(at, frequency, duration, velocity, pan, detune, vol
   const left = state.audio.createOscillator();
   const right = state.audio.createOscillator();
   const gain = state.audio.createGain();
+  const spaceSend = state.audio.createGain();
   const filter = state.audio.createBiquadFilter();
-  const panner = state.audio.createStereoPanner();
+  const panner = state.audio.createPanner();
+  const position = bowlSpatialPosition(frequency, pan, at);
+  const endPosition = bowlSpatialPosition(frequency, -pan * .35, at + duration);
   left.type = "sine";
   right.type = "sine";
   left.frequency.setValueAtTime(frequency, at);
@@ -1368,19 +1384,57 @@ function scheduleCrystalBowl(at, frequency, duration, velocity, pan, detune, vol
   filter.type = "lowpass";
   filter.frequency.setValueAtTime(Math.min(2600, frequency * 2.8), at);
   filter.Q.value = .018;
-  panner.pan.setValueAtTime(clamp(pan, -.72, .72), at);
-  panner.pan.linearRampToValueAtTime(clamp(-pan * .35, -.5, .5), at + duration);
+  panner.panningModel = "HRTF";
+  panner.distanceModel = "inverse";
+  panner.refDistance = .85;
+  panner.maxDistance = 7;
+  panner.rolloffFactor = .65;
+  setPannerPosition(panner, position, at);
+  rampPannerPosition(panner, endPosition, at + duration);
   gain.gain.setValueAtTime(.0001, at);
   gain.gain.linearRampToValueAtTime(.012 * velocity * bowlVolume, at + 1.8);
   gain.gain.setValueAtTime(.009 * velocity * bowlVolume, at + duration * .5);
   gain.gain.exponentialRampToValueAtTime(.0001, at + duration);
+  spaceSend.gain.setValueAtTime(.0001, at);
+  spaceSend.gain.linearRampToValueAtTime(.0065 * velocity * bowlVolume, at + 2.2);
+  spaceSend.gain.exponentialRampToValueAtTime(.0001, at + duration);
   left.connect(filter);
   right.connect(filter);
   filter.connect(gain).connect(panner).connect(state.audioNodes.musicFilter);
+  filter.connect(spaceSend).connect(state.audioNodes.musicSpaceDelay);
   left.start(at);
   right.start(at);
   left.stop(at + duration + .04);
   right.stop(at + duration + .04);
+}
+
+function bowlSpatialPosition(frequency, pan, at) {
+  const cycle = positiveModulo(at - (state.audioStartedAt || 0), BREATH_CYCLE_SECONDS) / BREATH_CYCLE_SECONDS;
+  const orbit = Math.sin(TWO_PI * cycle);
+  const height = Math.cos(TWO_PI * cycle + pan) * .18;
+  const distance = clamp(620 / Math.max(120, frequency), .45, 1.85);
+  return {
+    x: clamp(pan * 2.15 + orbit * .22, -2.6, 2.6),
+    y: clamp(height, -.45, .45),
+    z: -1.15 - distance,
+  };
+}
+
+function setPannerPosition(panner, position, at) {
+  if (panner.positionX) {
+    panner.positionX.setValueAtTime(position.x, at);
+    panner.positionY.setValueAtTime(position.y, at);
+    panner.positionZ.setValueAtTime(position.z, at);
+  } else {
+    panner.setPosition(position.x, position.y, position.z);
+  }
+}
+
+function rampPannerPosition(panner, position, at) {
+  if (!panner.positionX) return;
+  panner.positionX.linearRampToValueAtTime(position.x, at);
+  panner.positionY.linearRampToValueAtTime(position.y, at);
+  panner.positionZ.linearRampToValueAtTime(position.z, at);
 }
 
 function sourceTempoDensity(multiplier) {
