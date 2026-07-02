@@ -7,6 +7,8 @@ Meditation is a minimal browser-based sound and visualization instrument. It use
 
 Live app: https://ufo-files.github.io/meditation/
 
+Anonymous tips: https://tips.hushline.app/to/ufo-files
+
 ## What It Does
 
 The app renders a volumetric field of mapped stars with Three.js and overlays meditation-oriented audio layers that can be toggled, tuned, mixed, and exported as JSON settings.
