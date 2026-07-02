@@ -9,6 +9,7 @@ const breathLabel = document.getElementById("breath-label");
 const beatLabel = document.getElementById("beat-label");
 const droneLabel = document.getElementById("drone-label");
 const musicLabel = document.getElementById("music-label");
+const whistleLabel = document.getElementById("whistle-label");
 const binauralInput = document.getElementById("binaural");
 const eqToggleButton = document.getElementById("eq-toggle");
 const eqExportButton = document.getElementById("eq-export");
@@ -40,6 +41,8 @@ const BREATH_CYCLE_SECONDS = 16;
 const MUSIC_PHRASE_SECONDS = 16;
 const MUSIC_GRID_DIVISIONS = 4;
 const HEART_BPM_OPTIONS = [45, 60, 75, 90];
+const DOG_WHISTLE_PING_SECONDS = 3;
+const DOG_WHISTLE_CHIRP_SECONDS = 10;
 const CRYSTAL_BOWLS = [
   { size: "very large", ratio: .51, position: 0, pan: -.42, duration: 10.5, gain: .52, source: "musicKick" },
   { size: "large", ratio: .68, position: 18, pan: .28, duration: 8.2, gain: .34, source: "musicKick" },
@@ -56,6 +59,7 @@ const DRONE_BASE_GAIN = .026;
 const HEART_BASE_GAIN = .82;
 const BREATH_BASE_GAIN = 1.12;
 const MUSIC_BASE_GAIN = 1.74;
+const WHISTLE_BASE_GAIN = .08;
 const EQ_BANDS = [
   { id: "40", label: "40", frequency: 40, q: .82 },
   { id: "80", label: "80", frequency: 80, q: .9 },
@@ -66,7 +70,7 @@ const EQ_BANDS = [
   { id: "2k", label: "2k", frequency: 2000, q: 1 },
   { id: "5k", label: "5k", frequency: 5000, q: .95 },
 ];
-const EQ_TARGETS = ["master", "breath", "beat", "drone", "music"];
+const EQ_TARGETS = ["master", "breath", "beat", "drone", "music", "whistle"];
 const EQ_TARGET_BANDS = {
   master: EQ_BANDS,
   breath: [
@@ -109,6 +113,15 @@ const EQ_TARGET_BANDS = {
     { id: "1.8k", label: "1.8k", frequency: 1760, q: .8 },
     { id: "3.5k", label: "3.5k", frequency: 3520, q: .75 },
   ],
+  whistle: [
+    { id: "100", label: "100", frequency: 100, q: .8 },
+    { id: "432", label: "432", frequency: 432, q: .9 },
+    { id: "528", label: "528", frequency: 528, q: .9 },
+    { id: "2.5k", label: "2.5k", frequency: 2500, q: .85 },
+    { id: "5k", label: "5k", frequency: 5000, q: .8 },
+    { id: "10k", label: "10k", frequency: 10000, q: .7 },
+    { id: "17k", label: "17k", frequency: 17000, q: .65 },
+  ],
 };
 
 const catalog = window.UNIVERSE_STARS_DATA || { count: 0, stars: [] };
@@ -131,12 +144,14 @@ const state = {
     beat: true,
     drone: true,
     music: true,
+    whistle: true,
   },
   layerVolumes: {
     breath: .5,
     beat: .75,
     drone: 1.5,
     music: 1,
+    whistle: .1,
   },
   sourceFrequencies: {
     breath: 760,
@@ -144,14 +159,24 @@ const state = {
     drone: 7.83,
     musicKick: 432,
     musicBackbeat: 864,
+    whistleHarmonic: 528,
+    whistlePad: 432,
+    whistlePing: 17000,
+    whistleChirp: 2500,
   },
   sourceVolumes: {
     musicKick: 1,
     musicBackbeat: 1,
+    whistleHarmonic: .05,
+    whistlePad: .035,
+    whistlePing: .14,
+    whistleChirp: .16,
   },
   sourceTempos: {
     musicKick: 1,
     musicBackbeat: .5,
+    whistlePing: 1,
+    whistleChirp: 1,
   },
   eqOpen: false,
   eqTarget: "master",
@@ -649,7 +674,9 @@ function musicEnvelope(elapsed, bpm) {
 function renderEqualizer() {
   eqBandsEl.innerHTML = "";
   const settings = currentEqSettings();
-  bandsForTarget(state.eqTarget).forEach((band) => {
+  const bands = bandsForTarget(state.eqTarget);
+  eqBandsEl.style.setProperty("--eq-band-count", String(bands.length));
+  bands.forEach((band) => {
     const label = document.createElement("label");
     const name = document.createElement("span");
     const gain = document.createElement("input");
@@ -711,6 +738,7 @@ function syncLayerLabels() {
   beatLabel.textContent = `${state.beatBpm} bpm / ${formatHz(state.sourceFrequencies.beat)}`;
   droneLabel.textContent = `${formatHz(DRONE_TONE_FREQUENCY)} / ${formatHz(state.sourceFrequencies.drone)} mod`;
   musicLabel.textContent = `7 bowls / ${formatHz(state.sourceFrequencies.musicKick)} center`;
+  whistleLabel.textContent = `${formatHz(state.sourceFrequencies.whistleHarmonic)} / ${formatHz(state.sourceFrequencies.whistlePad)} / ${formatCompactHz(state.sourceFrequencies.whistlePing)} / ${formatCompactHz(state.sourceFrequencies.whistleChirp)}`;
 }
 
 function currentEqSettings() {
@@ -722,7 +750,7 @@ function bandsForTarget(target) {
 }
 
 function sourceTargetForEq(target) {
-  if (target === "master" || target === "music") return null;
+  if (target === "master" || target === "music" || target === "whistle") return null;
   return target;
 }
 
@@ -733,6 +761,10 @@ function sourceFrequencyConfig(target) {
     drone: { min: 1, max: 40, step: .01 },
     musicKick: { min: 174, max: 963, step: 1 },
     musicBackbeat: { min: 220, max: 2000, step: 1 },
+    whistleHarmonic: { min: 100, max: 2000, step: 1 },
+    whistlePad: { min: 100, max: 1200, step: 1 },
+    whistlePing: { min: 12000, max: 19000, step: 10 },
+    whistleChirp: { min: 1000, max: 5000, step: 10 },
   }[target] || { min: 20, max: 5000, step: 1 };
 }
 
@@ -751,6 +783,14 @@ function tuneControlsForTarget(target) {
       { key: "musicBackbeat", label: "Space" },
     ];
   }
+  if (target === "whistle") {
+    return [
+      { key: "whistleHarmonic", label: "528", tempo: false },
+      { key: "whistlePad", label: "432", tempo: false },
+      { key: "whistlePing", label: "17k", tempo: false },
+      { key: "whistleChirp", label: "2.5k", tempo: false },
+    ];
+  }
   const source = sourceTargetForEq(target);
   return source ? [{ key: source, label: "Tune" }] : [];
 }
@@ -759,6 +799,7 @@ function syncTuneControls() {
   const controls = tuneControlsForTarget(state.eqTarget);
   eqSourceRow.hidden = controls.length !== 1;
   eqSourceList.hidden = controls.length <= 1;
+  eqSourceList.dataset.target = state.eqTarget;
   eqSourceList.innerHTML = "";
   if (controls.length === 1) {
     const key = controls[0].key;
@@ -780,6 +821,7 @@ function syncTuneControls() {
     const volume = document.createElement("input");
     const volumeOutput = document.createElement("output");
     const tempo = document.createElement("select");
+    label.className = control.tempo === false ? "without-tempo" : "with-tempo";
     name.textContent = control.label;
     input.type = "number";
     input.min = String(config.min);
@@ -795,17 +837,20 @@ function syncTuneControls() {
     volume.value = String(state.sourceVolumes[control.key] ?? 1);
     volume.dataset.sourceVolume = control.key;
     volumeOutput.value = formatVolume(state.sourceVolumes[control.key] ?? 1);
-    sourceTempoOptions().forEach((option) => {
-      const item = document.createElement("option");
-      item.value = String(option);
-      item.textContent = `${option}x`;
-      item.selected = option === (state.sourceTempos[control.key] ?? 1);
-      tempo.append(item);
-    });
-    tempo.dataset.sourceTempo = control.key;
-    tempo.setAttribute("aria-label", `${control.label} tempo`);
-    tempo.value = String(state.sourceTempos[control.key] ?? 1);
-    label.append(name, input, unit, volume, volumeOutput, tempo);
+    label.append(name, input, unit, volume, volumeOutput);
+    if (control.tempo !== false) {
+      sourceTempoOptions().forEach((option) => {
+        const item = document.createElement("option");
+        item.value = String(option);
+        item.textContent = `${option}x`;
+        item.selected = option === (state.sourceTempos[control.key] ?? 1);
+        tempo.append(item);
+      });
+      tempo.dataset.sourceTempo = control.key;
+      tempo.setAttribute("aria-label", `${control.label} tempo`);
+      tempo.value = String(state.sourceTempos[control.key] ?? 1);
+      label.append(tempo);
+    }
     eqSourceList.append(label);
   });
 }
@@ -846,6 +891,7 @@ function applySourceVolumeInput(key, value) {
   if (!key) return;
   const config = sourceVolumeConfig();
   state.sourceVolumes[key] = clamp(Number(value) || 0, config.min, config.max);
+  updateAudio();
 }
 
 function applySourceTempoInput(key, value) {
@@ -855,6 +901,8 @@ function applySourceTempoInput(key, value) {
   syncLayerLabels();
   if (!state.audioNodes) return;
   if (key === "musicKick" || key === "musicBackbeat") state.audioNodes.nextMusicStepAt = 0;
+  if (key === "whistlePing") state.audioNodes.nextWhistlePingAt = 0;
+  if (key === "whistleChirp") state.audioNodes.nextWhistleChirpAt = 0;
 }
 
 function exportSoundSettings() {
@@ -908,6 +956,31 @@ function exportSoundSettings() {
         },
         eq: cloneEqSettings(state.eq.music),
       },
+      whistle: {
+        enabled: state.layers.whistle,
+        volume: state.layerVolumes.whistle,
+        sources: {
+          harmonic: {
+            frequencyHz: state.sourceFrequencies.whistleHarmonic,
+            volume: state.sourceVolumes.whistleHarmonic,
+          },
+          pad: {
+            frequencyHz: state.sourceFrequencies.whistlePad,
+            volume: state.sourceVolumes.whistlePad,
+          },
+          ping: {
+            frequencyHz: state.sourceFrequencies.whistlePing,
+            volume: state.sourceVolumes.whistlePing,
+            intervalSeconds: DOG_WHISTLE_PING_SECONDS / (state.sourceTempos.whistlePing || 1),
+          },
+          chirp: {
+            frequencyHz: state.sourceFrequencies.whistleChirp,
+            volume: state.sourceVolumes.whistleChirp,
+            intervalSeconds: DOG_WHISTLE_CHIRP_SECONDS / (state.sourceTempos.whistleChirp || 1),
+          },
+        },
+        eq: cloneEqSettings(state.eq.whistle),
+      },
     },
   };
   const blob = new Blob([`${JSON.stringify(settings, null, 2)}\n`], { type: "application/json" });
@@ -935,6 +1008,15 @@ function formatDb(value) {
 function formatHz(value) {
   const rounded = Math.round(value * 100) / 100;
   return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(2)} Hz`;
+}
+
+function formatCompactHz(value) {
+  const numericValue = Number(value) || 0;
+  if (numericValue >= 1000) {
+    const khz = Math.round(numericValue / 100) / 10;
+    return `${Number.isInteger(khz) ? khz : khz.toFixed(1)}k`;
+  }
+  return formatHz(numericValue);
 }
 
 function formatTempo(value) {
@@ -997,6 +1079,13 @@ async function startAudio() {
     const musicOutputFilter = audio.createBiquadFilter();
     const musicAnalyserGain = audio.createGain();
     const musicAnalyser = audio.createAnalyser();
+    const whistleHarmonic = audio.createOscillator();
+    const whistlePad = audio.createOscillator();
+    const whistleHarmonicGain = audio.createGain();
+    const whistlePadGain = audio.createGain();
+    const whistleGain = audio.createGain();
+    const whistleFilter = audio.createBiquadFilter();
+    const whistleLimiter = audio.createDynamicsCompressor();
     let breathSource = null;
     leftDrone.type = "sine";
     rightDrone.type = "sine";
@@ -1025,6 +1114,21 @@ async function startAudio() {
     musicAnalyserGain.gain.value = 1.15;
     musicAnalyser.fftSize = 1024;
     musicAnalyser.smoothingTimeConstant = .58;
+    whistleHarmonic.type = "sine";
+    whistlePad.type = "sine";
+    whistleHarmonic.frequency.value = state.sourceFrequencies.whistleHarmonic;
+    whistlePad.frequency.value = state.sourceFrequencies.whistlePad;
+    whistleHarmonicGain.gain.value = 0;
+    whistlePadGain.gain.value = 0;
+    whistleGain.gain.value = 0;
+    whistleFilter.type = "lowpass";
+    whistleFilter.frequency.value = 19000;
+    whistleFilter.Q.value = .1;
+    whistleLimiter.threshold.value = -24;
+    whistleLimiter.knee.value = 18;
+    whistleLimiter.ratio.value = 4;
+    whistleLimiter.attack.value = .004;
+    whistleLimiter.release.value = .12;
     leftGain.gain.value = 1;
     rightGain.gain.value = 1;
     droneModulator.frequency.value = state.sourceFrequencies.drone;
@@ -1043,6 +1147,11 @@ async function startAudio() {
     connectEqualizerChain(musicOutputFilter, eqNodes.music.filters, eqNodes.music.trimGain);
     eqNodes.music.trimGain.connect(master);
     eqNodes.music.trimGain.connect(musicAnalyserGain).connect(musicAnalyser);
+    whistleHarmonic.connect(whistleHarmonicGain).connect(whistleGain);
+    whistlePad.connect(whistlePadGain).connect(whistleGain);
+    whistleGain.connect(whistleFilter).connect(whistleLimiter);
+    connectEqualizerChain(whistleLimiter, eqNodes.whistle.filters, eqNodes.whistle.trimGain);
+    eqNodes.whistle.trimGain.connect(master);
     if (audio.audioWorklet) {
       try {
         await audio.audioWorklet.addModule("audio-worklet.js");
@@ -1064,6 +1173,8 @@ async function startAudio() {
     leftDrone.start();
     rightDrone.start();
     droneModulator.start();
+    whistleHarmonic.start();
+    whistlePad.start();
     state.audio = audio;
     state.audioNodes = {
       master,
@@ -1084,8 +1195,16 @@ async function startAudio() {
       musicAnalyserGain,
       musicAnalyser,
       musicWaveformData: new Float32Array(musicAnalyser.fftSize),
+      whistleHarmonic,
+      whistlePad,
+      whistleHarmonicGain,
+      whistlePadGain,
+      whistleGain,
+      whistleFilter,
       nextHeartBeatAt: 0,
       nextMusicStepAt: 0,
+      nextWhistlePingAt: 0,
+      nextWhistleChirpAt: 0,
     };
   }
   if (state.audio.state === "suspended") await state.audio.resume();
@@ -1093,6 +1212,8 @@ async function startAudio() {
   state.audioStartedAt = state.audio.currentTime;
   state.audioNodes.nextHeartBeatAt = 0;
   state.audioNodes.nextMusicStepAt = state.audioStartedAt + .02;
+  state.audioNodes.nextWhistlePingAt = state.audioStartedAt + .02;
+  state.audioNodes.nextWhistleChirpAt = state.audioStartedAt + .02;
   state.musicSession = createMusicSession(state.beatBpm);
   applyMusicSession(state.audio.currentTime);
   if (state.audioNodes.breathSource) {
@@ -1111,6 +1232,7 @@ async function startAudio() {
       updateBreathAudio(state.audio.currentTime);
       scheduleHeartBeats(state.audio.currentTime);
       scheduleMusic(state.audio.currentTime);
+      scheduleDogWhistle(state.audio.currentTime);
     }, 50);
   }
 }
@@ -1125,6 +1247,11 @@ function updateAudio() {
   state.audioNodes.droneGain.gain.setTargetAtTime(state.layers.drone && state.running ? DRONE_BASE_GAIN * state.layerVolumes.drone : 0, now, .12);
   state.audioNodes.heartGain.gain.setTargetAtTime(state.layers.beat && state.running ? HEART_BASE_GAIN * state.layerVolumes.beat : 0, now, .12);
   state.audioNodes.musicGain.gain.setTargetAtTime(state.layers.music && state.running ? MUSIC_BASE_GAIN * state.layerVolumes.music : 0, now, .18);
+  state.audioNodes.whistleGain.gain.setTargetAtTime(state.layers.whistle && state.running ? WHISTLE_BASE_GAIN * state.layerVolumes.whistle : 0, now, .12);
+  state.audioNodes.whistleHarmonic.frequency.setTargetAtTime(state.sourceFrequencies.whistleHarmonic, now, .08);
+  state.audioNodes.whistlePad.frequency.setTargetAtTime(state.sourceFrequencies.whistlePad, now, .08);
+  state.audioNodes.whistleHarmonicGain.gain.setTargetAtTime(state.layers.whistle && state.running ? state.sourceVolumes.whistleHarmonic : 0, now, .12);
+  state.audioNodes.whistlePadGain.gain.setTargetAtTime(state.layers.whistle && state.running ? state.sourceVolumes.whistlePad : 0, now, .12);
   state.audioNodes.musicFilter.frequency.setTargetAtTime(state.layers.music && state.running ? (state.musicSession?.filterHz || 860) : 520, now, .4);
   state.audioNodes.musicOutputFilter.frequency.setTargetAtTime(state.layers.music && state.running ? 4200 : 420, now, .35);
   state.audioNodes.master.gain.setTargetAtTime(state.running ? state.volume : 0, now, .08);
@@ -1141,6 +1268,7 @@ function updateAudio() {
   updateEqualizer(now);
   scheduleHeartBeats(now);
   scheduleMusic(now);
+  scheduleDogWhistle(now);
 }
 
 function connectEqualizerChain(source, filters, destination) {
@@ -1338,6 +1466,74 @@ function scheduleCrystalBowl(at, frequency, duration, velocity, pan, detune, vol
   right.stop(at + duration + .04);
 }
 
+function scheduleDogWhistle(now) {
+  if (!state.audio || !state.audioNodes || !state.layers.whistle || !state.running) return;
+  const pingInterval = DOG_WHISTLE_PING_SECONDS / Math.max(.25, state.sourceTempos.whistlePing || 1);
+  const chirpInterval = DOG_WHISTLE_CHIRP_SECONDS / Math.max(.25, state.sourceTempos.whistleChirp || 1);
+  if (!state.audioNodes.nextWhistlePingAt || state.audioNodes.nextWhistlePingAt < now) {
+    state.audioNodes.nextWhistlePingAt = nextWhistleTime(now, pingInterval);
+  }
+  if (!state.audioNodes.nextWhistleChirpAt || state.audioNodes.nextWhistleChirpAt < now) {
+    state.audioNodes.nextWhistleChirpAt = nextWhistleTime(now, chirpInterval);
+  }
+  while (state.audioNodes.nextWhistlePingAt < now + .8) {
+    scheduleWhistlePing(state.audioNodes.nextWhistlePingAt);
+    state.audioNodes.nextWhistlePingAt += pingInterval;
+  }
+  while (state.audioNodes.nextWhistleChirpAt < now + .8) {
+    scheduleWhistleChirp(state.audioNodes.nextWhistleChirpAt);
+    state.audioNodes.nextWhistleChirpAt += chirpInterval;
+  }
+}
+
+function nextWhistleTime(now, interval) {
+  const origin = state.audioStartedAt || now;
+  const step = Math.max(0, Math.ceil((now - origin + .001) / interval));
+  return origin + step * interval;
+}
+
+function scheduleWhistlePing(at) {
+  const oscillator = state.audio.createOscillator();
+  const gain = state.audio.createGain();
+  const filter = state.audio.createBiquadFilter();
+  const panner = state.audio.createStereoPanner();
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(state.sourceFrequencies.whistlePing, at);
+  filter.type = "highpass";
+  filter.frequency.setValueAtTime(12000, at);
+  filter.Q.value = .15;
+  panner.pan.setValueAtTime(.18, at);
+  gain.gain.setValueAtTime(.0001, at);
+  gain.gain.linearRampToValueAtTime(.045 * state.sourceVolumes.whistlePing, at + .018);
+  gain.gain.exponentialRampToValueAtTime(.0001, at + .22);
+  oscillator.connect(filter).connect(gain).connect(panner).connect(state.audioNodes.whistleGain);
+  oscillator.start(at);
+  oscillator.stop(at + .24);
+}
+
+function scheduleWhistleChirp(at) {
+  const oscillator = state.audio.createOscillator();
+  const gain = state.audio.createGain();
+  const filter = state.audio.createBiquadFilter();
+  const panner = state.audio.createStereoPanner();
+  const base = state.sourceFrequencies.whistleChirp;
+  oscillator.type = "sine";
+  oscillator.frequency.setValueAtTime(base * .84, at);
+  oscillator.frequency.linearRampToValueAtTime(base * 1.18, at + .18);
+  oscillator.frequency.linearRampToValueAtTime(base * .94, at + .42);
+  filter.type = "bandpass";
+  filter.frequency.setValueAtTime(base, at);
+  filter.Q.value = 1.1;
+  panner.pan.setValueAtTime(-.22, at);
+  panner.pan.linearRampToValueAtTime(.2, at + .42);
+  gain.gain.setValueAtTime(.0001, at);
+  gain.gain.linearRampToValueAtTime(.075 * state.sourceVolumes.whistleChirp, at + .08);
+  gain.gain.exponentialRampToValueAtTime(.0001, at + .52);
+  oscillator.connect(filter).connect(gain).connect(panner).connect(state.audioNodes.whistleGain);
+  oscillator.start(at);
+  oscillator.stop(at + .56);
+}
+
 function sourceTempoDensity(multiplier) {
   if (multiplier <= .25) return 4;
   if (multiplier <= .5) return 2;
@@ -1506,6 +1702,8 @@ beatBpmInput.addEventListener("change", () => {
   if (state.audioNodes) {
     state.audioNodes.nextHeartBeatAt = 0;
     state.audioNodes.nextMusicStepAt = 0;
+    state.audioNodes.nextWhistlePingAt = 0;
+    state.audioNodes.nextWhistleChirpAt = 0;
     state.musicSession = createMusicSession(state.beatBpm);
     applyMusicSession(state.audio.currentTime);
   }
@@ -1550,6 +1748,10 @@ eqSourceInput.addEventListener("change", () => {
 layerToggleInputs.forEach((input) => {
   input.addEventListener("change", () => {
     state.layers[input.dataset.layer] = input.checked;
+    if (input.dataset.layer === "whistle" && state.audioNodes) {
+      state.audioNodes.nextWhistlePingAt = 0;
+      state.audioNodes.nextWhistleChirpAt = 0;
+    }
     updateAudio();
     syncControls();
   });

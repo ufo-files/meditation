@@ -402,23 +402,46 @@ select {
 }
 
 .eq-source-list {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
   gap: 0;
   padding: 8px 0;
 }
 
+.eq-source-list[data-target="whistle"] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  row-gap: 8px;
+  padding: 8px 0 10px;
+}
+
 .eq-source-list label {
   display: grid;
-  grid-template-columns: 70px minmax(54px, 1fr) 28px;
+  grid-template-columns: 42px minmax(0, 1fr) 34px;
   grid-template-rows: 22px 22px 26px;
-  gap: 4px 8px;
+  gap: 4px 6px;
   align-items: center;
   min-width: 0;
-  padding: 0 12px;
+  padding: 0 8px;
+}
+
+.eq-source-list label.without-tempo {
+  grid-template-rows: 22px 22px;
 }
 
 .eq-source-list label + label {
   border-left: 1px solid var(--line);
+}
+
+.eq-source-list[data-target="whistle"] label {
+  padding: 0 12px;
+}
+
+.eq-source-list[data-target="whistle"] label:nth-child(odd) {
+  border-left: 0;
+}
+
+.eq-source-list[data-target="whistle"] label:nth-child(n+3) {
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
 }
 
 .eq-source-list label > span {
@@ -426,9 +449,14 @@ select {
   grid-row: 1 / span 3;
 }
 
+.eq-source-list label.without-tempo > span {
+  grid-row: 1 / span 2;
+}
+
 .eq-source-list input[type="number"] {
   grid-column: 2;
   grid-row: 1;
+  padding-right: 24px;
 }
 
 .eq-source-list input[type="range"] {
@@ -437,8 +465,17 @@ select {
 }
 
 .eq-source-list output:first-of-type {
-  grid-column: 3;
+  grid-column: 2;
   grid-row: 1;
+}
+
+.eq-source-list output:first-of-type {
+  display: block;
+  justify-self: end;
+  align-self: center;
+  width: auto;
+  pointer-events: none;
+  text-align: right;
 }
 
 .eq-source-list output:last-of-type {
@@ -456,7 +493,7 @@ select {
 
 .eq-bands {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--eq-band-count, 8), minmax(0, 1fr));
   gap: 0;
   padding: 12px 10px 14px;
 }
@@ -543,7 +580,7 @@ select {
   bottom: 12px;
   z-index: 4;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .readout > div {
@@ -644,7 +681,7 @@ select {
 .site-motto {
   position: fixed;
   left: 12px;
-  bottom: 80px;
+  bottom: 96px;
   z-index: 6;
   color: var(--muted);
   font: 12px/1 var(--font);
@@ -727,7 +764,7 @@ select {
 
   .site-motto {
     left: 8px;
-    bottom: 129px;
+    bottom: 209px;
     font-size: 11px;
   }
 

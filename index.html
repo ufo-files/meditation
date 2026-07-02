@@ -56,6 +56,7 @@
             <option value="beat">Heartbeat</option>
             <option value="drone">Drone</option>
             <option value="music">Music</option>
+            <option value="whistle">Dog whistle</option>
           </select>
         </label>
         <div class="eq-actions">
@@ -122,6 +123,14 @@
         <b>Music <em class="experimental-badge">Experimental</em></b>
         <label class="layer-switch" aria-label="Toggle music">
           <input class="layer-toggle" type="checkbox" data-layer="music" checked>
+          <i aria-hidden="true"></i>
+        </label>
+      </div>
+      <div class="layer-control" data-layer-control="whistle">
+        <span id="whistle-label">528 / 432 / 17k / 2.5k</span>
+        <b>Dog whistle <em class="experimental-badge">Experimental</em></b>
+        <label class="layer-switch" aria-label="Toggle dog whistle">
+          <input class="layer-toggle" type="checkbox" data-layer="whistle" checked>
           <i aria-hidden="true"></i>
         </label>
       </div>
