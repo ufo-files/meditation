@@ -61,7 +61,7 @@ const TEMPLE_BOWL_ACCENTS = [
   { size: "small", ratio: .63, pan: .44, duration: 4.2, gain: .08, source: "musicBackbeat" },
   { size: "small", ratio: .91, pan: -.48, duration: 3.8, gain: .07, source: "musicBackbeat" },
 ];
-const AUDIO_WORKLET_VERSION = "2026-07-01-breath-air-band";
+const AUDIO_WORKLET_VERSION = "2026-07-01-breath-air-cleaner";
 const DRONE_TONE_FREQUENCY = 100;
 const DRONE_BASE_GAIN = .026;
 const HEART_BASE_GAIN = .82;
@@ -1053,7 +1053,7 @@ async function startAudio() {
     breathHighpass.frequency.value = 320;
     breathHighpass.Q.value = .35;
     breathLowpass.type = "lowpass";
-    breathLowpass.frequency.value = 2200;
+    breathLowpass.frequency.value = 1600;
     breathLowpass.Q.value = .3;
     droneGain.gain.value = state.layers.drone ? DRONE_BASE_GAIN * state.layerVolumes.drone : 0;
     heartGain.gain.value = state.layers.beat ? HEART_BASE_GAIN * state.layerVolumes.beat : 0;

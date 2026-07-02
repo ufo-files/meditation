@@ -55,8 +55,8 @@ class MeditationBreathProcessor extends AudioWorkletProcessor {
     const rawAir =
       interpolatedNoise(t * this.airHz * .58 + 11.7) * .034 +
       interpolatedNoise(t * this.airHz * .86 + 23.1) * .022 +
-      interpolatedNoise(t * this.airHz * 1.16 + 41.3) * .008;
-    this.air += (rawAir - this.air) * .011;
+      interpolatedNoise(t * this.airHz * .98 + 41.3) * .002;
+    this.air += (rawAir - this.air) * .0075;
 
     const chest = .995 + .004 * unipolarSine(.16, t + .2);
     const mouth = .93 + .026 * unipolarSine(.25, t + 1.6) + .012 * unipolarSine(.43, t);
