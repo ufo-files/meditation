@@ -62,10 +62,11 @@ const TEMPLE_BOWL_ACCENTS = [
   { size: "small", ratio: .63, pan: .44, duration: 4.2, gain: .08, source: "musicBackbeat" },
   { size: "small", ratio: .91, pan: -.48, duration: 3.8, gain: .07, source: "musicBackbeat" },
 ];
+const AUDIO_WORKLET_VERSION = "2026-07-01-breath-air-band";
 const DRONE_TONE_FREQUENCY = 100;
 const DRONE_BASE_GAIN = .026;
 const HEART_BASE_GAIN = .82;
-const BREATH_BASE_GAIN = 1.12;
+const BREATH_BASE_GAIN = 1.9;
 const MUSIC_BASE_GAIN = 1.74;
 const EQ_BANDS = [
   { id: "40", label: "40", frequency: 40, q: .82 },
@@ -144,7 +145,7 @@ const state = {
     music: true,
   },
   layerVolumes: {
-    breath: .5,
+    breath: 1,
     beat: .25,
     drone: 1.5,
     music: 1,
@@ -1051,10 +1052,10 @@ async function startAudio() {
     droneModulator.type = "sine";
     breathGain.gain.value = 0;
     breathHighpass.type = "highpass";
-    breathHighpass.frequency.value = 120;
+    breathHighpass.frequency.value = 320;
     breathHighpass.Q.value = .35;
     breathLowpass.type = "lowpass";
-    breathLowpass.frequency.value = 620;
+    breathLowpass.frequency.value = 2200;
     breathLowpass.Q.value = .3;
     droneGain.gain.value = state.layers.drone ? DRONE_BASE_GAIN * state.layerVolumes.drone : 0;
     heartGain.gain.value = state.layers.beat ? HEART_BASE_GAIN * state.layerVolumes.beat : 0;
@@ -1093,7 +1094,7 @@ async function startAudio() {
     eqNodes.music.trimGain.connect(musicAnalyserGain).connect(musicAnalyser);
     if (audio.audioWorklet) {
       try {
-        await audio.audioWorklet.addModule("audio-worklet.js");
+        await audio.audioWorklet.addModule(`audio-worklet.js?v=${AUDIO_WORKLET_VERSION}`);
         breathSource = new AudioWorkletNode(audio, "meditation-breath-processor", {
           numberOfInputs: 0,
           numberOfOutputs: 1,
