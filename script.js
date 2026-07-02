@@ -1163,7 +1163,7 @@ async function startAudio() {
   state.startedAt = performance.now() / 1000;
   state.audioStartedAt = state.audio.currentTime;
   state.audioNodes.nextHeartBeatAt = 0;
-  state.audioNodes.nextMusicStepAt = state.audioStartedAt + .02;
+  state.audioNodes.nextMusicStepAt = 0;
   state.musicSession = createMusicSession(state.beatBpm);
   applyMusicSession(state.audio.currentTime);
   if (state.audioNodes.breathSource) {

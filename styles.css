@@ -136,6 +136,7 @@ h1 {
   justify-content: end;
   flex-wrap: wrap;
   padding: 8px;
+  background: rgba(5, 5, 5, .5);
 }
 
 button,

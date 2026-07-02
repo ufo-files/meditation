@@ -13,7 +13,7 @@ The app renders a volumetric field of mapped stars with Three.js and overlays me
 
 - Real universe layer: 12,000 Gaia DR3 stars mapped into a volumetric star field.
 - Box breath core: synthetic breath layer following a 4-4-4-4 box-breathing cycle.
-- Heart-rate field: synthetic heartbeat pulse with BPM values chosen to divide cleanly into the breath cycle.
+- Heart-rate field: synthetic heartbeat pulse fixed at the canonical 48 BPM meditation tempo.
 - Low drone: 100 Hz tone modulated at 7.83 Hz.
 - Music: experimental synthetic singing-bowl layer, synchronized with the breath and heartbeat timing.
 - Binaural mode: headphone-oriented stereo treatment for supported layers.
