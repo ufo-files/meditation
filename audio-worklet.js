@@ -49,14 +49,14 @@ class MeditationBreathProcessor extends AudioWorkletProcessor {
 
   sampleBreath(t, active) {
     const target = active ? breathAirEnvelope(t, this.cycleSeconds) : 0;
-    const smoothing = target < this.envelope ? .00013 : .00042;
+    const smoothing = .00032;
     this.envelope += (target - this.envelope) * smoothing;
 
     const rawAir =
-      interpolatedNoise(t * this.airHz + 11.7) * .11 +
-      interpolatedNoise(t * this.airHz * 1.368 + 23.1) * .09 +
-      interpolatedNoise(t * this.airHz * 1.816 + 41.3) * .052;
-    this.air += (rawAir - this.air) * .032;
+      interpolatedNoise(t * this.airHz * .18 + 11.7) * .04 +
+      interpolatedNoise(t * this.airHz * .31 + 23.1) * .024 +
+      interpolatedNoise(t * this.airHz * .47 + 41.3) * .012;
+    this.air += (rawAir - this.air) * .009;
 
     const chest = .995 + .004 * unipolarSine(.16, t + .2);
     const mouth = .93 + .026 * unipolarSine(.25, t + 1.6) + .012 * unipolarSine(.43, t);
@@ -68,14 +68,18 @@ function breathAirEnvelope(t, cycleSeconds = BREATH_CYCLE_SECONDS) {
   const length = Math.max(4, cycleSeconds);
   const side = length / 4;
   const phase = positiveModulo(t, length);
-  if (phase < side) return breathLobe(phase / side);
+  if (phase < side) return breathFlowEnvelope(phase / side);
   if (phase < side * 2) return 0;
-  if (phase < side * 3) return breathLobe((phase - side * 2) / side) * .9;
+  if (phase < side * 3) return breathFlowEnvelope((phase - side * 2) / side) * .9;
   return 0;
 }
 
-function breathLobe(value) {
-  return Math.pow(Math.sin(Math.PI * clamp(value, 0, 1)), 1.05);
+function breathFlowEnvelope(value) {
+  const x = clamp(value, 0, 1);
+  const fadeWidth = .62;
+  const attack = smootherstep(clamp(x / fadeWidth, 0, 1));
+  const release = 1 - smootherstep(clamp((x - (1 - fadeWidth)) / fadeWidth, 0, 1));
+  return Math.pow(attack * release, .55);
 }
 
 function breathSwell(t, cycleSeconds = BREATH_CYCLE_SECONDS) {

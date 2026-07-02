@@ -47,7 +47,7 @@ const VISUAL_RESPONSE_SPEED = 1.45;
 const MUSIC_VISUAL_SIGNAL_GAIN = 4;
 const TRACE_RGB = "17, 17, 17";
 const BREATH_SIDE_SECONDS = 4;
-const BREATH_CYCLE_SECONDS = 16;
+const BREATH_CYCLE_SECONDS = BREATH_SIDE_SECONDS * 4;
 const MUSIC_PHRASE_SECONDS = 16;
 const MUSIC_GRID_DIVISIONS = 4;
 const HEART_BPM_OPTIONS = [45, 60, 75, 90];
@@ -481,7 +481,7 @@ function updateVisualState(elapsed) {
   const targetMusic = state.running ? musicEnvelope(clock, state.beatBpm) : 0;
   const targetMusicAudio = state.running ? musicAudioEnvelope() : 0;
   const targetActive = state.running ? 1 : .32;
-  state.visual.breath += (targetBreath - state.visual.breath) * (state.running ? .16 : .055) * VISUAL_RESPONSE_SPEED;
+  state.visual.breath = state.running ? targetBreath : state.visual.breath + (targetBreath - state.visual.breath) * .055 * VISUAL_RESPONSE_SPEED;
   state.visual.beat += (targetBeat - state.visual.beat) * .34 * VISUAL_RESPONSE_SPEED;
   state.visual.music += (targetMusic - state.visual.music) * .08 * VISUAL_RESPONSE_SPEED;
   state.visual.musicAudio += (targetMusicAudio - state.visual.musicAudio) * .035 * VISUAL_RESPONSE_SPEED;
@@ -636,10 +636,14 @@ function resizeCanvas() {
 function boxBreath(elapsed, sideSeconds) {
   const cycle = sideSeconds * 4;
   const t = positiveModulo(elapsed, cycle);
-  if (t < sideSeconds) return smoothstep(t / sideSeconds);
+  if (t < sideSeconds) return breathMotionEase(t / sideSeconds);
   if (t < sideSeconds * 2) return 1;
-  if (t < sideSeconds * 3) return 1 - smoothstep((t - sideSeconds * 2) / sideSeconds);
+  if (t < sideSeconds * 3) return 1 - breathMotionEase((t - sideSeconds * 2) / sideSeconds);
   return 0;
+}
+
+function breathMotionEase(value) {
+  return .5 - Math.cos(Math.PI * clamp(value, 0, 1)) * .5;
 }
 
 function beatEnvelope(elapsed, bpm) {
@@ -732,7 +736,7 @@ function syncControls() {
 }
 
 function syncLayerLabels() {
-  breathLabel.textContent = `${formatHz(state.sourceFrequencies.breath)} / 4-4-4-4`;
+  breathLabel.textContent = `${formatHz(state.sourceFrequencies.breath)} / ${boxBreathLabel()}`;
   beatLabel.textContent = `${state.beatBpm} bpm / ${formatHz(state.sourceFrequencies.beat)}`;
   droneLabel.textContent = `${formatHz(DRONE_TONE_FREQUENCY)} / ${formatHz(state.sourceFrequencies.drone)} mod`;
   musicLabel.textContent = `7 bowls / ${formatHz(state.sourceFrequencies.musicKick)} center`;
@@ -968,6 +972,10 @@ function formatHz(value) {
   return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(2)} Hz`;
 }
 
+function boxBreathLabel() {
+  return Array.from({ length: 4 }, () => BREATH_SIDE_SECONDS).join("-");
+}
+
 function formatCompactHz(value) {
   const numericValue = Number(value) || 0;
   if (numericValue >= 1000) {
@@ -1043,10 +1051,10 @@ async function startAudio() {
     droneModulator.type = "sine";
     breathGain.gain.value = 0;
     breathHighpass.type = "highpass";
-    breathHighpass.frequency.value = 340;
+    breathHighpass.frequency.value = 120;
     breathHighpass.Q.value = .35;
     breathLowpass.type = "lowpass";
-    breathLowpass.frequency.value = 1900;
+    breathLowpass.frequency.value = 620;
     breathLowpass.Q.value = .3;
     droneGain.gain.value = state.layers.drone ? DRONE_BASE_GAIN * state.layerVolumes.drone : 0;
     heartGain.gain.value = state.layers.beat ? HEART_BASE_GAIN * state.layerVolumes.beat : 0;
