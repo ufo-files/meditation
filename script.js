@@ -31,15 +31,18 @@ const STAR_COUNT_TARGET = 12000;
 const UNIVERSE_INNER_RADIUS = .16;
 const UNIVERSE_OUTER_RADIUS = 1.94;
 const OVERLAY_POINT_COUNT = 8000;
-const CORE_POINT_COUNT = 6000;
-const BEAT_POINT_COUNT = OVERLAY_POINT_COUNT;
-const DRONE_POINT_COUNT = 6000;
+const CORE_POINT_COUNT = 10000;
+const BEAT_POINT_COUNT = 12000;
+const DRONE_POINT_COUNT = 4000;
 const MUSIC_POINT_COUNT = OVERLAY_POINT_COUNT;
-const BREATH_VOLUME_SCALE = .42;
-const BEAT_VOLUME_SCALE = .52;
+const HEART_RADIUS_SCALE = .598;
+const BREATH_MIN_RADIUS_SCALE = HEART_RADIUS_SCALE * .405;
+const BREATH_REST_OPACITY = .22;
+const BREATH_PEAK_OPACITY = .44;
+const BEAT_VOLUME_SCALE = HEART_RADIUS_SCALE;
 const DRONE_VOLUME_SCALE = .075;
-const MUSIC_VOLUME_SCALE = .54;
-const VISUAL_ROTATION_SPEED = 1.85;
+const MUSIC_VOLUME_SCALE = .675;
+const VISUAL_ROTATION_SPEED = 1.15;
 const VISUAL_RESPONSE_SPEED = 1.45;
 const MUSIC_VISUAL_SIGNAL_GAIN = 4;
 const TRACE_RGB = "17, 17, 17";
@@ -229,7 +232,7 @@ function createThreeRenderer(THREE) {
   const root = new THREE.Group();
   const texture = createThreePointTexture(THREE);
   const universe = createThreeStarLayer(THREE, texture);
-  const breath = createThreeProceduralLayer(THREE, texture, breathPoints, BEAT_VOLUME_SCALE, .023, .62);
+  const breath = createThreeProceduralLayer(THREE, texture, breathPoints, HEART_RADIUS_SCALE, .015, BREATH_PEAK_OPACITY);
   const beat = createThreeProceduralLayer(THREE, texture, beatPoints, BEAT_VOLUME_SCALE, .015, .52);
   const drone = createThreeProceduralLayer(THREE, texture, dronePoints, DRONE_VOLUME_SCALE, .014, .2);
   const music = createThreeProceduralLayer(THREE, texture, musicPoints, MUSIC_VOLUME_SCALE, .018, .18);
@@ -367,7 +370,7 @@ function drawThree(elapsed) {
   view.universe.points.scale.setScalar(state.depth);
   view.universe.material.opacity = state.running ? .92 : .72;
   updateThreeMusicLayer(view.music, MUSIC_VOLUME_SCALE, music, elapsed, active);
-  updateThreeProceduralLayer(view.breath, BEAT_VOLUME_SCALE * (.5 + breath * .5), state.running ? .024 : 0, .5 + breath * .32);
+  updateThreeProceduralLayer(view.breath, breathRadiusScale(breath), state.running ? .024 : 0, breathOpacity(breath));
   updateThreeHeartLayer(view.beat, BEAT_VOLUME_SCALE, beat, state.running);
   updateThreeDroneLayer(view.drone, DRONE_VOLUME_SCALE, state.running ? audioElapsed(elapsed) : elapsed, state.running ? .007 : 0);
   view.renderer.render(view.scene, view.camera);
@@ -414,19 +417,19 @@ function updateThreeMusicLayer(layer, scale, energy, elapsed, active) {
 function updateThreeHeartLayer(layer, scale, beat, animateSurface) {
   const positions = layer.geometry.attributes.position.array;
   const now = performance.now() * .00012;
-  const pulseScale = scale * (1 + beat * .08);
+  const pulseScale = scale * (1 + beat * .06);
   for (let index = 0; index < layer.phases.length; index += 1) {
     const offset = index * 3;
     const nx = layer.directions[offset];
     const ny = layer.directions[offset + 1];
     const nz = layer.directions[offset + 2];
-    const surfaceNoise = animateSurface ? Math.sin(layer.phases[index] * TWO_PI + now) * .004 : 0;
+    const surfaceNoise = animateSurface ? Math.sin(layer.phases[index] * TWO_PI + now) * .006 * beat : 0;
     positions[offset] = layer.basePositions[offset] * pulseScale + nx * surfaceNoise;
     positions[offset + 1] = layer.basePositions[offset + 1] * pulseScale + ny * surfaceNoise;
     positions[offset + 2] = layer.basePositions[offset + 2] * pulseScale + nz * surfaceNoise;
   }
-  layer.material.opacity = .44 + beat * .46;
-  layer.material.size = .015 + beat * .004;
+  layer.material.opacity = .44;
+  layer.material.size = .015;
   layer.geometry.attributes.position.needsUpdate = true;
 }
 
@@ -466,8 +469,8 @@ function drawCanvas(elapsed) {
   ctx.clearRect(0, 0, width, height);
   if (state.layers.universe) drawCanvasStars({ width, height, scale, rotationX, rotationY });
   if (state.layers.music) drawCanvasMusicPoints(musicPoints, MUSIC_VOLUME_SCALE, 1.06, rotationX * .82, rotationY * 1.12, .34 + music * .22, music, elapsed);
-  if (state.layers.breath) drawCanvasSpherePoints(breathPoints, BEAT_VOLUME_SCALE * (.5 + breath * .5), .9, rotationX, rotationY, .32 + breath * .26, state.running ? .025 : 0);
-  if (state.layers.beat) drawCanvasSpherePoints(beatPoints, BEAT_VOLUME_SCALE * (1 + beat * .08), .74, rotationX * .9, rotationY * 1.08, .34 + beat * .44, state.running ? .004 : 0);
+  if (state.layers.breath) drawCanvasSpherePoints(breathPoints, breathRadiusScale(breath), .74, rotationX, rotationY, breathOpacity(breath), state.running ? .025 : 0);
+  if (state.layers.beat) drawCanvasSpherePoints(beatPoints, BEAT_VOLUME_SCALE * (1 + beat * .06), .74, rotationX * .9, rotationY * 1.08, .44, state.running ? .006 * beat : 0);
   if (state.layers.drone) drawCanvasDronePoints(dronePoints, DRONE_VOLUME_SCALE, .9, rotationX * 1.1, rotationY * .82, .16, state.running ? audioElapsed(elapsed) : elapsed);
 }
 
@@ -479,10 +482,18 @@ function updateVisualState(elapsed) {
   const targetMusicAudio = state.running ? musicAudioEnvelope() : 0;
   const targetActive = state.running ? 1 : .32;
   state.visual.breath += (targetBreath - state.visual.breath) * (state.running ? .16 : .055) * VISUAL_RESPONSE_SPEED;
-  state.visual.beat += (targetBeat - state.visual.beat) * .18 * VISUAL_RESPONSE_SPEED;
+  state.visual.beat += (targetBeat - state.visual.beat) * .34 * VISUAL_RESPONSE_SPEED;
   state.visual.music += (targetMusic - state.visual.music) * .08 * VISUAL_RESPONSE_SPEED;
   state.visual.musicAudio += (targetMusicAudio - state.visual.musicAudio) * .035 * VISUAL_RESPONSE_SPEED;
   state.visual.active += (targetActive - state.visual.active) * .045 * VISUAL_RESPONSE_SPEED;
+}
+
+function breathRadiusScale(breath) {
+  return BREATH_MIN_RADIUS_SCALE + (HEART_RADIUS_SCALE - BREATH_MIN_RADIUS_SCALE) * breath;
+}
+
+function breathOpacity(breath) {
+  return BREATH_REST_OPACITY + (BREATH_PEAK_OPACITY - BREATH_REST_OPACITY) * breath;
 }
 
 function drawCanvasStars({ width, height, scale, rotationX, rotationY }) {
@@ -636,7 +647,9 @@ function beatEnvelope(elapsed, bpm) {
   // values are chosen because each produces an integer beat count per 16 sec.
   const secondsPerBeat = heartBeatInterval(bpm);
   const phase = positiveModulo(elapsed, secondsPerBeat) / secondsPerBeat;
-  return Math.exp(-phase * 8);
+  const lub = Math.exp(-Math.pow((phase - .045) / .038, 2));
+  const dub = Math.exp(-Math.pow((phase - .18) / .052, 2)) * .42;
+  return clamp(lub + dub, 0, 1);
 }
 
 function heartBeatInterval(bpm) {
