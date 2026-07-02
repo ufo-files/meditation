@@ -367,7 +367,7 @@ function drawThree(elapsed) {
   view.universe.points.scale.setScalar(state.depth);
   view.universe.material.opacity = state.running ? .92 : .72;
   updateThreeMusicLayer(view.music, MUSIC_VOLUME_SCALE, music, elapsed, active);
-  updateThreeProceduralLayer(view.breath, BEAT_VOLUME_SCALE + breath * .18, state.running ? .024 : 0, .46 + breath * .3);
+  updateThreeProceduralLayer(view.breath, BEAT_VOLUME_SCALE + breath * .12, state.running ? .024 : 0, .46 + breath * .3);
   updateThreeHeartLayer(view.beat, BEAT_VOLUME_SCALE, beat, state.running);
   updateThreeDroneLayer(view.drone, DRONE_VOLUME_SCALE, state.running ? audioElapsed(elapsed) : elapsed, state.running ? .007 : 0);
   view.renderer.render(view.scene, view.camera);
@@ -466,7 +466,7 @@ function drawCanvas(elapsed) {
   ctx.clearRect(0, 0, width, height);
   if (state.layers.universe) drawCanvasStars({ width, height, scale, rotationX, rotationY });
   if (state.layers.music) drawCanvasMusicPoints(musicPoints, MUSIC_VOLUME_SCALE, 1.06, rotationX * .82, rotationY * 1.12, .34 + music * .22, music, elapsed);
-  if (state.layers.breath) drawCanvasSpherePoints(breathPoints, BEAT_VOLUME_SCALE + breath * .18, .9, rotationX, rotationY, .28 + breath * .24, state.running ? .025 : 0);
+  if (state.layers.breath) drawCanvasSpherePoints(breathPoints, BEAT_VOLUME_SCALE + breath * .12, .9, rotationX, rotationY, .28 + breath * .24, state.running ? .025 : 0);
   if (state.layers.beat) drawCanvasSpherePoints(beatPoints, BEAT_VOLUME_SCALE * (1 + beat * .12), .74, rotationX * .9, rotationY * 1.08, .34 + beat * .44, state.running ? .006 : 0);
   if (state.layers.drone) drawCanvasDronePoints(dronePoints, DRONE_VOLUME_SCALE, .9, rotationX * 1.1, rotationY * .82, .16, state.running ? audioElapsed(elapsed) : elapsed);
 }
