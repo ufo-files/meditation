@@ -485,6 +485,7 @@ function drawCanvas(elapsed) {
 
 function updateVisualState(elapsed) {
   const clock = state.running ? audioElapsed(elapsed) : elapsed;
+  updateBreathGuide(state.running ? clock : 0);
   const targetBreath = state.running ? boxBreath(clock, BREATH_SIDE_SECONDS) : 0;
   const targetBeat = state.running ? beatEnvelope(clock, state.beatBpm) : 0;
   const targetMusic = state.running ? musicEnvelope(clock) : 0;
@@ -746,7 +747,7 @@ function syncControls() {
 }
 
 function syncLayerLabels() {
-  breathLabel.textContent = `${formatHz(state.sourceFrequencies.breath)} / ${boxBreathLabel()}`;
+  updateBreathGuide(state.running ? audioElapsed(performance.now() / 1000 - state.startedAt) : 0);
   beatLabel.textContent = `${state.beatBpm} bpm / ${formatHz(state.sourceFrequencies.beat)}`;
   droneLabel.textContent = `${formatHz(DRONE_TONE_FREQUENCY)} / ${formatHz(state.sourceFrequencies.drone)} mod`;
   musicLabel.textContent = `7 bowls / ${formatHz(state.sourceFrequencies.musicKick)} center`;
@@ -982,8 +983,21 @@ function formatHz(value) {
   return `${Number.isInteger(rounded) ? rounded : rounded.toFixed(2)} Hz`;
 }
 
-function boxBreathLabel() {
-  return Array.from({ length: 4 }, () => BREATH_SIDE_SECONDS).join("-");
+function updateBreathGuide(elapsed) {
+  const guide = breathGuide(elapsed);
+  breathLabel.textContent = `${formatHz(state.sourceFrequencies.breath)} / ${guide.label} ${guide.remaining}s`;
+}
+
+function breathGuide(elapsed) {
+  const t = positiveModulo(elapsed, BREATH_CYCLE_SECONDS);
+  const phaseIndex = Math.floor(t / BREATH_SIDE_SECONDS);
+  const phaseElapsed = t - phaseIndex * BREATH_SIDE_SECONDS;
+  const remaining = Math.max(1, Math.ceil(BREATH_SIDE_SECONDS - phaseElapsed));
+  const labels = ["Breathe in", "Hold", "Breathe out", "Hold"];
+  return {
+    label: labels[phaseIndex] || labels[0],
+    remaining,
+  };
 }
 
 function formatCompactHz(value) {
