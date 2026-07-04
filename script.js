@@ -195,7 +195,6 @@ const state = {
 
 renderEqualizer();
 syncControls();
-statusEl.textContent = `Idle / ${stars.length.toLocaleString()} Gaia DR3 stars mapped`;
 animateCanvas();
 upgradeToThree();
 
@@ -1053,7 +1052,7 @@ function eqGainPosition(gain) {
 async function toggleSession() {
   state.running = !state.running;
   state.startedAt = performance.now() / 1000;
-  statusEl.textContent = state.running ? "Active / universe meditation" : `Idle / ${stars.length.toLocaleString()} Gaia DR3 stars mapped`;
+  statusEl.textContent = state.running ? "Active" : "Idle";
   syncControls();
   if (state.running) {
     try {
