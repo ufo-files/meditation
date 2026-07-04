@@ -3,6 +3,8 @@ const ctx = canvas.getContext("2d");
 const visualStage = document.getElementById("visual-stage");
 const controlsMenuToggle = document.getElementById("controls-menu-toggle");
 const controlsPanel = document.getElementById("controls-panel");
+const tonesToggle = document.getElementById("tones-toggle");
+const tonesPanel = document.getElementById("tones-panel");
 const startButton = document.getElementById("start");
 const animationToggleButton = document.getElementById("animation-toggle");
 const appSwitcher = document.getElementById("app-switcher");
@@ -771,6 +773,12 @@ function setControlsOpen(open) {
   document.body.classList.toggle("controls-open", open);
   controlsMenuToggle.setAttribute("aria-expanded", String(open));
   controlsMenuToggle.setAttribute("aria-label", open ? "Close controls" : "Open controls");
+}
+
+function setTonesOpen(open) {
+  document.body.classList.toggle("tones-open", open);
+  tonesToggle.setAttribute("aria-expanded", String(open));
+  tonesToggle.setAttribute("aria-label", open ? "Close tones" : "Open tones");
 }
 
 function syncLayerLabels() {
@@ -1652,15 +1660,27 @@ startButton.addEventListener("click", toggleSession);
 controlsMenuToggle.addEventListener("click", () => {
   setControlsOpen(!document.body.classList.contains("controls-open"));
 });
+tonesToggle.addEventListener("click", () => {
+  setTonesOpen(!document.body.classList.contains("tones-open"));
+});
 visualStage.addEventListener("pointermove", showStartOverlayTemporarily);
 visualStage.addEventListener("pointerdown", showStartOverlayTemporarily);
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") setControlsOpen(false);
+  if (event.key !== "Escape") return;
+  setControlsOpen(false);
+  setTonesOpen(false);
 });
 document.addEventListener("pointerdown", (event) => {
-  if (!document.body.classList.contains("controls-open")) return;
-  if (controlsPanel.contains(event.target) || controlsMenuToggle.contains(event.target)) return;
-  setControlsOpen(false);
+  if (document.body.classList.contains("controls-open")
+    && !controlsPanel.contains(event.target)
+    && !controlsMenuToggle.contains(event.target)) {
+    setControlsOpen(false);
+  }
+  if (document.body.classList.contains("tones-open")
+    && !tonesPanel.contains(event.target)
+    && !tonesToggle.contains(event.target)) {
+    setTonesOpen(false);
+  }
 });
 animationToggleButton.addEventListener("click", () => {
   state.animationPaused = !state.animationPaused;

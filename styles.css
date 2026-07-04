@@ -671,6 +671,10 @@ select {
   transform: translateX(-50%);
 }
 
+.tones-toggle {
+  display: none;
+}
+
 .readout {
   position: fixed;
   left: 12px;
@@ -884,11 +888,37 @@ select {
     width: 100%;
   }
 
+  .tones-toggle {
+    position: fixed;
+    left: 8px;
+    bottom: 8px;
+    z-index: 5;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 74px;
+    height: 30px;
+    padding: 0 8px;
+    border: 1px solid var(--line);
+    background: rgba(26, 24, 22, .5);
+    color: var(--ink);
+    font: inherit;
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+
   .readout {
     left: 8px;
     right: 8px;
-    bottom: 8px;
+    bottom: 46px;
+    display: none;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: min(64vh, 360px);
+    overflow-y: auto;
+  }
+
+  body.tones-open .readout {
+    display: grid;
   }
 
   .site-motto {
