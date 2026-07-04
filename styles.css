@@ -5,6 +5,7 @@
   --ink: #e8e5de;
   --muted: #a6a29a;
   --line: #3b3934;
+  --separator: rgba(232, 229, 222, .34);
   --chip: #171613;
   --toggle-bg: rgba(246, 243, 235, .75);
   --toggle-knob: #050505;
@@ -513,6 +514,7 @@ select {
 }
 
 .eq-source-list label {
+  position: relative;
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) 34px;
   grid-template-rows: 22px 22px 26px;
@@ -527,7 +529,17 @@ select {
 }
 
 .eq-source-list label + label {
-  border-left: 1px solid var(--line);
+  border-left: 0;
+}
+
+.eq-source-list label + label::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: 1px;
+  background: var(--separator);
 }
 
 .eq-source-list label > span {
@@ -667,17 +679,28 @@ select {
   z-index: 4;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  background: rgba(5, 5, 5, .5);
+  border: 0;
+  background: transparent;
 }
 
 .readout > div {
+  position: relative;
   min-width: 0;
   padding: 10px 12px;
-  border-right: 1px solid var(--line);
 }
 
-.readout > div:last-child {
-  border-right: 0;
+.readout > div::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  right: 0;
+  bottom: 10px;
+  width: 1px;
+  background: var(--separator);
+}
+
+.readout > div:last-child::after {
+  display: none;
 }
 
 .readout .layer-control {
@@ -766,13 +789,10 @@ select {
 }
 
 .site-motto {
-  position: fixed;
-  left: 12px;
-  bottom: 80px;
-  z-index: 6;
   display: flex;
   gap: 12px;
   align-items: center;
+  margin-top: 12px;
   color: var(--muted);
   font: 12px/1 var(--font);
   text-transform: uppercase;
@@ -872,8 +892,6 @@ select {
   }
 
   .site-motto {
-    left: 8px;
-    bottom: 177px;
     font-size: 11px;
   }
 
@@ -886,7 +904,7 @@ select {
     column-gap: 10px;
   }
 
-  .readout > div:nth-child(2n) {
-    border-right: 0;
+  .readout > div:nth-child(2n)::after {
+    display: none;
   }
 }
