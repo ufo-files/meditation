@@ -1673,6 +1673,7 @@ document.addEventListener("keydown", (event) => {
 document.addEventListener("pointerdown", (event) => {
   if (document.body.classList.contains("controls-open")
     && !controlsPanel.contains(event.target)
+    && !equalizerPanel.contains(event.target)
     && !controlsMenuToggle.contains(event.target)) {
     setControlsOpen(false);
   }
