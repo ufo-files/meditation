@@ -1,5 +1,8 @@
 const canvas = document.getElementById("universe");
 const ctx = canvas.getContext("2d");
+const visualStage = document.getElementById("visual-stage");
+const controlsMenuToggle = document.getElementById("controls-menu-toggle");
+const controlsPanel = document.getElementById("controls-panel");
 const startButton = document.getElementById("start");
 const animationToggleButton = document.getElementById("animation-toggle");
 const appSwitcher = document.getElementById("app-switcher");
@@ -20,6 +23,7 @@ const eqSourceRow = document.getElementById("eq-source");
 const eqSourceInput = document.getElementById("eq-source-frequency");
 const eqSourceOutput = document.getElementById("eq-source-output");
 const eqSourceList = document.getElementById("eq-source-list");
+let startOverlayTimer = 0;
 const eqVolumeLabel = document.querySelector(".eq-volume span");
 const eqVolumeOutput = document.getElementById("eq-volume-output");
 const equalizerPanel = document.getElementById("equalizer");
@@ -723,6 +727,7 @@ function syncControls() {
   equalizerPanel.hidden = !state.eqOpen;
   eqTargetInput.value = state.eqTarget;
   binauralInput.checked = state.binaural;
+  updateSessionChrome();
   syncLayerLabels();
   syncVolumeControls();
 
@@ -744,6 +749,29 @@ function syncControls() {
     input.nextElementSibling.value = formatDb(gain);
   });
   state.needsVisualFrame = true;
+}
+
+function updateSessionChrome() {
+  document.body.classList.toggle("is-running", state.running);
+  showStartOverlayTemporarily();
+}
+
+function showStartOverlayTemporarily() {
+  document.body.classList.add("show-start-overlay");
+  clearTimeout(startOverlayTimer);
+  startOverlayTimer = window.setTimeout(() => {
+    document.body.classList.remove("show-start-overlay");
+  }, 1400);
+}
+
+function setControlsOpen(open) {
+  if (state.eqOpen) {
+    state.eqOpen = false;
+    syncControls();
+  }
+  document.body.classList.toggle("controls-open", open);
+  controlsMenuToggle.setAttribute("aria-expanded", String(open));
+  controlsMenuToggle.setAttribute("aria-label", open ? "Close controls" : "Open controls");
 }
 
 function syncLayerLabels() {
@@ -1622,6 +1650,19 @@ function positiveModulo(value, divisor) {
 }
 
 startButton.addEventListener("click", toggleSession);
+controlsMenuToggle.addEventListener("click", () => {
+  setControlsOpen(!document.body.classList.contains("controls-open"));
+});
+visualStage.addEventListener("pointermove", showStartOverlayTemporarily);
+visualStage.addEventListener("pointerdown", showStartOverlayTemporarily);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") setControlsOpen(false);
+});
+document.addEventListener("pointerdown", (event) => {
+  if (!document.body.classList.contains("controls-open")) return;
+  if (controlsPanel.contains(event.target) || controlsMenuToggle.contains(event.target)) return;
+  setControlsOpen(false);
+});
 animationToggleButton.addEventListener("click", () => {
   state.animationPaused = !state.animationPaused;
   state.needsVisualFrame = true;

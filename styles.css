@@ -30,6 +30,11 @@ main {
   min-height: 100%;
 }
 
+.visual-stage {
+  position: fixed;
+  inset: 0;
+}
+
 #universe {
   position: fixed;
   inset: 0;
@@ -47,14 +52,16 @@ main {
   right: 12px;
   z-index: 5;
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) auto;
-  gap: 10px;
-  align-items: start;
-  pointer-events: none;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  min-height: 56px;
+  padding: 8px 12px;
+  border: 0;
+  background: transparent;
+  pointer-events: auto;
 }
 
 .brand,
-.controls,
 .readout {
   pointer-events: auto;
   border: 1px solid var(--line);
@@ -63,10 +70,89 @@ main {
 }
 
 .brand {
-  max-width: 640px;
-  padding: 10px 12px;
-  border-color: transparent;
+  display: block;
+  min-width: 0;
+  border: 0;
   background: transparent;
+}
+
+.topbar button,
+.topbar input,
+.topbar select,
+.topbar .toggle,
+.topbar .toggle i {
+  border: 0;
+}
+
+.menu-button {
+  display: grid;
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  place-content: center;
+  gap: 5px;
+  padding: 0;
+  background: transparent;
+}
+
+.menu-button span {
+  display: block;
+  width: 18px;
+  height: 1px;
+  background: var(--ink);
+}
+
+.menu-button[aria-expanded="true"] {
+  background: var(--chip);
+}
+
+.start-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .22s ease;
+}
+
+body.show-start-overlay .start-overlay {
+  opacity: 1;
+}
+
+body:not(.show-start-overlay) .start-button {
+  pointer-events: none;
+}
+
+.start-button {
+  pointer-events: auto;
+  min-width: 132px;
+  height: 52px;
+  padding: 0 24px;
+  background: rgba(8, 8, 8, .72);
+  font-size: 15px;
+}
+
+.controls-panel {
+  position: fixed;
+  top: 68px;
+  right: 12px;
+  z-index: 7;
+  width: min(360px, calc(100vw - 24px));
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(12px);
+  transition: opacity .16s ease, transform .16s ease;
+}
+
+body.controls-open .controls-panel {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
 }
 
 h1 {
@@ -130,13 +216,13 @@ h1 {
 }
 
 .controls {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 8px;
-  align-items: center;
-  justify-content: end;
-  flex-wrap: wrap;
-  padding: 8px;
-  background: rgba(5, 5, 5, .5);
+  align-items: stretch;
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 button,
@@ -226,14 +312,14 @@ select {
 }
 
 .toggle {
-  height: 34px;
+  min-height: 34px;
   display: grid;
-  grid-template-columns: auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
-  border: 1px solid var(--line);
-  background: var(--field);
-  padding: 0 10px;
+  border: 0;
+  background: transparent;
+  padding: 0;
   color: var(--muted);
   font-size: 12px;
   text-transform: uppercase;
@@ -251,6 +337,7 @@ select {
 
 .toggle i {
   position: relative;
+  justify-self: end;
   width: 36px;
   height: 16px;
   border: 1px solid var(--line);
@@ -274,7 +361,7 @@ select {
 }
 
 .toggle:has(input:checked) {
-  background: var(--chip);
+  background: transparent;
 }
 
 .toggle input:checked + i::before {
@@ -694,12 +781,12 @@ select {
     top: 8px;
     left: 8px;
     right: 8px;
-    grid-template-columns: 1fr;
-    gap: 6px;
+    min-height: 54px;
+    padding: 7px 8px;
   }
 
   .brand {
-    padding: 8px 10px;
+    display: block;
   }
 
   h1 {
@@ -707,9 +794,20 @@ select {
   }
 
   .controls {
-    justify-content: start;
+    justify-content: stretch;
     gap: 6px;
-    padding: 6px;
+    padding: 0;
+  }
+
+  .controls-panel {
+    top: 62px;
+    right: 8px;
+    width: calc(100vw - 16px);
+  }
+
+  .start-button {
+    min-width: 112px;
+    height: 46px;
   }
 
   .equalizer {
@@ -740,8 +838,8 @@ select {
   }
 
   .toggle {
-    height: 30px;
-    padding: 0 8px;
+    min-height: 30px;
+    padding: 0;
     font-size: 12px;
   }
 

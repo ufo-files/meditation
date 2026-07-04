@@ -8,7 +8,12 @@
 </head>
 <body>
   <main aria-labelledby="app-title">
-    <canvas id="universe" aria-label="Mapped universe meditation visualizer"></canvas>
+    <div class="visual-stage" id="visual-stage">
+      <canvas id="universe" aria-label="Mapped universe meditation visualizer"></canvas>
+      <div class="start-overlay" id="start-overlay">
+        <button id="start" class="start-button" type="button">Start</button>
+      </div>
+    </div>
 
     <div class="topbar">
       <section class="brand" aria-label="Session status">
@@ -26,8 +31,15 @@
         <div class="meta" id="status" role="status" aria-live="polite">Idle / universe mapped</div>
       </section>
 
+      <button id="controls-menu-toggle" class="menu-button" type="button" aria-label="Open controls" aria-controls="controls-panel" aria-expanded="false">
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+        <span aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <aside class="controls-panel" id="controls-panel" aria-label="Meditation controls">
       <form class="controls" id="controls" aria-label="Meditation controls">
-        <button id="start" type="button">Start</button>
         <button id="animation-toggle" type="button" aria-pressed="false">Pause animation</button>
         <label class="toggle" for="binaural">
           <span>Binaural mode</span>
@@ -36,7 +48,7 @@
         </label>
         <button id="eq-toggle" type="button" aria-expanded="false" aria-controls="equalizer">EQ</button>
       </form>
-    </div>
+    </aside>
 
     <section class="equalizer" id="equalizer" aria-label="Equalizer" hidden>
       <div class="eq-header">
